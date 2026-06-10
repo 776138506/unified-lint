@@ -1,0 +1,12 @@
+// 规则：Markdown 文档必须包含 frontmatter 的 last_updated 字段
+language markdown
+
+`---
+$frontmatter
+---` where {
+  $frontmatter <: not contains `last_updated`,
+  register_diagnostic(
+    message = "文档缺少 last_updated 字段，所有文档必须标注最后更新时间",
+    severity = "warn"
+  )
+}

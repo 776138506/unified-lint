@@ -1,0 +1,20 @@
+[importlinter]
+root_package = myapp
+include_external_packages = False
+
+[importlinter:contract:layers]
+name = 分层架构依赖规则
+type = layers
+layers =
+    myapp.api
+    myapp.infra
+    myapp.service
+    myapp.domain
+
+[importlinter:contract:no-infra-to-domain]
+name = 禁止 infra 直接依赖 domain
+type = forbidden
+source_modules =
+    myapp.infra
+forbidden_modules =
+    myapp.domain
