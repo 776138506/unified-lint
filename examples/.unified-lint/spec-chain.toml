@@ -1,0 +1,12 @@
+# spec-chain 配置
+# 定义文档间的契约链
+
+[[chains]]
+source = "specs/prd.md"
+target = "specs/biz-arch.md"
+rule = "prd_coverage"
+
+[[chains]]
+source = "specs/metrics.md"
+target = "specs/api.md"
+rule = "metrics_api_compliance"

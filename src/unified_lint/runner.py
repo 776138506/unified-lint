@@ -11,6 +11,7 @@ from .engines.import_linter import ImportLinterEngine
 from .engines.python_ast import PythonAstEngine
 from .engines.markdown_ast import MarkdownAstEngine
 from .engines.tree_sitter_engine import TreeSitterEngine
+from .engines.spec_chain import SpecChainEngine
 
 # Try tomllib (3.11+) or tomli
 try:
@@ -43,6 +44,7 @@ def get_engines(config: dict) -> list:
         engines.append(PythonAstEngine())
         engines.append(MarkdownAstEngine())
         engines.append(TreeSitterEngine())
+        engines.append(SpecChainEngine())
 
     if config.get("layers", {}).get("enabled", True):
         engines.append(ImportLinterEngine())

@@ -90,6 +90,7 @@ def rule_list(
     from .engines.python_ast import PythonAstEngine
     from .engines.markdown_ast import MarkdownAstEngine
     from .engines.tree_sitter_engine import TreeSitterEngine
+    from .engines.spec_chain import SpecChainEngine
 
     rules = discover_rules(project)
 
@@ -108,6 +109,17 @@ def rule_list(
         for rule in ts_rules:
             rule["engine"] = "tree-sitter"
         rules.extend(ts_rules)
+
+    # Add spec-chain rules
+    sc_engine = SpecChainEngine()
+    rules.extend([
+        {"id": "prd_coverage", "engine": "spec-chain", "severity": "error",
+         "description": "PRD requirements covered in business architecture"},
+        {"id": "metrics_api_compliance", "engine": "spec-chain", "severity": "error",
+         "description": "API endpoints meet performance metrics"},
+        {"id": "api_code_compliance", "engine": "spec-chain", "severity": "error",
+         "description": "Code implements all API endpoints"},
+    ])
 
     table = Table(title="Available Rules")
     table.add_column("Rule ID", style="cyan")
