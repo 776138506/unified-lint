@@ -10,6 +10,7 @@ from .engines.grit import GritEngine
 from .engines.import_linter import ImportLinterEngine
 from .engines.python_ast import PythonAstEngine
 from .engines.markdown_ast import MarkdownAstEngine
+from .engines.tree_sitter_engine import TreeSitterEngine
 
 # Try tomllib (3.11+) or tomli
 try:
@@ -41,6 +42,7 @@ def get_engines(config: dict) -> list:
         engines.append(GritEngine())
         engines.append(PythonAstEngine())
         engines.append(MarkdownAstEngine())
+        engines.append(TreeSitterEngine())
 
     if config.get("layers", {}).get("enabled", True):
         engines.append(ImportLinterEngine())
@@ -83,15 +85,17 @@ def run_check(
         result = engine.check(project_root, engine_config)
         results.append(result)
 
-        if result.error:
-            worst_exit = 4
-        elif result.has_errors:
-            if worst_exit != 4:
-                worst_exit = 1
+        if result.has_errors:
+            # Severity.ERROR violations take highest priority
+            worst_exit = 1
         elif result.violations:
+            # Warnings or info violations
             best_sev = min(v.severity.exit_priority for v in result.violations)
-            if worst_exit == 0 or best_sev < worst_exit:
+            if worst_exit == 0 or (worst_exit != 1 and best_sev < worst_exit):
                 worst_exit = best_sev
+        elif result.error and worst_exit == 0:
+            # Engine error, but only if no violations found yet
+            worst_exit = 4
 
     return results, worst_exit
 

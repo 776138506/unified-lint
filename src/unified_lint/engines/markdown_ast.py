@@ -313,7 +313,7 @@ class MarkdownAstEngine(LintEngine):
 
             rel_path = md_file.relative_to(project_root)
             for rule_id, (fn, severity, desc) in _REGISTRY.items():
-                violations = fn(rel_path, token_dicts)
+                violations = fn(md_file, token_dicts)
                 for v in violations:
                     v.file = str(rel_path)
                 result.violations.extend(violations)
