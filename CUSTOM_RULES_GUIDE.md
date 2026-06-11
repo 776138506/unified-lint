@@ -1,6 +1,6 @@
 # unified-lint 自定义规则开发指南
 
-本指南教你如何为 unified-lint 编写自定义规则。unified-lint 支持三种引擎，每种引擎适用于不同类型的检查。
+本指南教你如何为 unified-lint 编写自定义规则。unified-lint 支持五种引擎，每种引擎适用于不同类型的检查。
 
 ## 目录
 
@@ -8,8 +8,9 @@
 2. [GritQL 引擎：简单模式匹配](#gritql-引擎简单模式匹配)
 3. [Python AST 引擎：精确代码分析](#python-ast-引擎精确代码分析)
 4. [Markdown AST 引擎：文档结构分析](#markdown-ast-引擎文档结构分析)
-5. [测试你的规则](#测试你的规则)
-6. [完整示例：从零编写一条规则](#完整示例从零编写一条规则)
+5. [Tree-sitter 引擎：Rust 和 C# 支持](#tree-sitter-引擎rust-和-c-支持)
+6. [测试你的规则](#测试你的规则)
+7. [完整示例：从零编写一条规则](#完整示例从零编写一条规则)
 
 ---
 
@@ -22,6 +23,8 @@
 | **GritQL** | 简单的文本/语法模式匹配 | 语法简洁，跨语言 | Python parser 是 Alpha，复杂结构匹配不稳定 |
 | **Python AST** | 精确的 Python 代码分析 | 100% 准确，完整 AST 访问 | 仅支持 Python |
 | **Markdown AST** | 文档结构和内容检查 | 精确解析 Markdown 元素 | 仅支持 Markdown |
+| **Tree-sitter** | Rust 和 C# 代码分析 | 精确 AST，多语言扩展性强 | 需安装语言 grammar |
+| **import-linter** | Python 架构依赖检查 | 分层架构强制执行 | 仅支持 Python |
 
 ### 决策树
 
@@ -31,14 +34,23 @@
 ├─ Python 代码的函数/类/控制流
 │  └─ 使用 Python AST 引擎
 │
+├─ Rust 代码（unsafe/pub API/函数长度）
+│  └─ 使用 Tree-sitter 引擎
+│
+├─ C# 代码（async-await/命名/null）
+│  └─ 使用 Tree-sitter 引擎
+│
 ├─ Markdown 文档的 frontmatter/链接/heading/代码块
 │  └─ 使用 Markdown AST 引擎
 │
 ├─ 简单的赋值语句模式（如 `password = "xxx"`）
 │  └─ 使用 GritQL 引擎
 │
-└─ 跨语言的模式匹配（如 JavaScript/Go/Rust）
-   └─ 使用 GritQL 引擎
+├─ 跨语言的模式匹配（如 JavaScript/Go）
+│  └─ 使用 GritQL 引擎
+│
+└─ Python 项目架构依赖方向
+   └─ 使用 import-linter 引擎
 ```
 
 ---
@@ -359,6 +371,150 @@ src/unified_lint/engines/your_md_rule.py
 ```
 
 然后在 `src/unified_lint/engines/markdown_ast.py` 中导入。
+
+---
+
+## Tree-sitter 引擎：Rust 和 C# 支持
+
+Tree-sitter 引擎使用 [tree-sitter](https://tree-sitter.github.io/) 进行精确的 AST 分析，支持 Rust 和 C# 两种语言。
+
+### 安装
+
+```bash
+pip install tree-sitter tree-sitter-rust tree-sitter-c-sharp
+```
+
+### 编写 Rust 规则
+
+```python
+"""Your Rust rule module."""
+
+from pathlib import Path
+from unified_lint.engines.tree_sitter_engine import TreeSitterEngine
+from unified_lint.engines.base import Violation, Severity
+
+
+class MyRustEngine(TreeSitterEngine):
+    """Custom Rust rules."""
+
+    def _check_rust_file(self, file_path: Path, project_root: Path) -> list[Violation]:
+        violations = []
+
+        from tree_sitter import Parser
+        parser = Parser(self.languages["rust"])
+        content = file_path.read_text(encoding="utf-8")
+        tree = parser.parse(bytes(content, "utf-8"))
+
+        def visit(node):
+            # Example: detect unwrap() calls
+            if node.type == "call_expression":
+                for child in node.children:
+                    if child.type == "field_expression":
+                        for c in child.children:
+                            if c.type == "field_identifier" and c.text == b"unwrap":
+                                rel_path = file_path.relative_to(project_root)
+                                violations.append(Violation(
+                                    rule_id="rust_no_unwrap",
+                                    message="Avoid unwrap() - use expect() or proper error handling",
+                                    file=str(rel_path),
+                                    line=node.start_point[0] + 1,
+                                    col=node.start_point[1] + 1,
+                                    severity=Severity.WARN,
+                                    engine=self.name,
+                                ))
+            for child in node.children:
+                visit(child)
+
+        visit(tree.root_node)
+        return violations
+```
+
+### 编写 C# 规则
+
+```python
+"""Your C# rule module."""
+
+from pathlib import Path
+from unified_lint.engines.tree_sitter_engine import TreeSitterEngine
+from unified_lint.engines.base import Violation, Severity
+
+
+class MyCSharpEngine(TreeSitterEngine):
+    """Custom C# rules."""
+
+    def _check_csharp_file(self, file_path: Path, project_root: Path) -> list[Violation]:
+        violations = []
+
+        from tree_sitter import Parser
+        parser = Parser(self.languages["c_sharp"])
+        content = file_path.read_text(encoding="utf-8")
+        tree = parser.parse(bytes(content, "utf-8"))
+
+        def visit(node):
+            # Example: detect Console.WriteLine in production code
+            if node.type == "invocation_expression":
+                text = node.text.decode("utf-8")
+                if "Console.WriteLine" in text:
+                    rel_path = file_path.relative_to(project_root)
+                    violations.append(Violation(
+                        rule_id="csharp_no_console_writeline",
+                        message="Use ILogger instead of Console.WriteLine",
+                        file=str(rel_path),
+                        line=node.start_point[0] + 1,
+                        col=node.start_point[1] + 1,
+                        severity=Severity.WARN,
+                        engine=self.name,
+                    ))
+            for child in node.children:
+                visit(child)
+
+        visit(tree.root_node)
+        return violations
+```
+
+### Tree-sitter 常用节点类型
+
+#### Rust
+
+| 节点类型 | 说明 |
+|---------|------|
+| `function_item` | 函数定义 |
+| `unsafe_block` | unsafe 块 |
+| `visibility_modifier` | 可见性修饰符 (pub) |
+| `identifier` | 标识符 |
+| `call_expression` | 函数调用 |
+| `field_expression` | 字段访问 |
+| `line_comment` | 行注释 |
+
+#### C#
+
+| 节点类型 | 说明 |
+|---------|------|
+| `method_declaration` | 方法定义 |
+| `class_declaration` | 类定义 |
+| `modifier` | 修饰符 (async, public 等) |
+| `identifier` | 标识符 |
+| `await_expression` | await 表达式 |
+| `return_statement` | return 语句 |
+| `null_literal` | null 字面量 |
+| `invocation_expression` | 方法调用 |
+
+### 扩展新语言
+
+Tree-sitter 支持 100+ 种语言。添加新语言只需：
+
+```python
+# 1. 安装 grammar
+pip install tree-sitter-go  # 例如 Go
+
+# 2. 在 TreeSitterEngine._init_languages() 中添加
+import tree_sitter_go
+self.languages["go"] = Language(tree_sitter_go.language())
+
+# 3. 添加对应的 check 方法
+def _check_go_file(self, file_path, project_root):
+    ...
+```
 
 ---
 
