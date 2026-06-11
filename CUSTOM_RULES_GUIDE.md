@@ -1,0 +1,618 @@
+# unified-lint 自定义规则开发指南
+
+本指南教你如何为 unified-lint 编写自定义规则。unified-lint 支持三种引擎，每种引擎适用于不同类型的检查。
+
+## 目录
+
+1. [引擎选择指南](#引擎选择指南)
+2. [GritQL 引擎：简单模式匹配](#gritql-引擎简单模式匹配)
+3. [Python AST 引擎：精确代码分析](#python-ast-引擎精确代码分析)
+4. [Markdown AST 引擎：文档结构分析](#markdown-ast-引擎文档结构分析)
+5. [测试你的规则](#测试你的规则)
+6. [完整示例：从零编写一条规则](#完整示例从零编写一条规则)
+
+---
+
+## 引擎选择指南
+
+### 三种引擎对比
+
+| 引擎 | 适用场景 | 优势 | 劣势 |
+|------|---------|------|------|
+| **GritQL** | 简单的文本/语法模式匹配 | 语法简洁，跨语言 | Python parser 是 Alpha，复杂结构匹配不稳定 |
+| **Python AST** | 精确的 Python 代码分析 | 100% 准确，完整 AST 访问 | 仅支持 Python |
+| **Markdown AST** | 文档结构和内容检查 | 精确解析 Markdown 元素 | 仅支持 Markdown |
+
+### 决策树
+
+```
+你要检查什么？
+│
+├─ Python 代码的函数/类/控制流
+│  └─ 使用 Python AST 引擎
+│
+├─ Markdown 文档的 frontmatter/链接/heading/代码块
+│  └─ 使用 Markdown AST 引擎
+│
+├─ 简单的赋值语句模式（如 `password = "xxx"`）
+│  └─ 使用 GritQL 引擎
+│
+└─ 跨语言的模式匹配（如 JavaScript/Go/Rust）
+   └─ 使用 GritQL 引擎
+```
+
+---
+
+## GritQL 引擎：简单模式匹配
+
+GritQL 使用模式匹配语法，适合检查简单的代码模式。
+
+### 基本语法
+
+```markdown
+---
+name: rule_name
+title: "Rule Title"
+description: "What this rule checks"
+level: error  # 或 warn
+tags:
+  - category
+---
+
+# Rule Name
+
+Description of the rule.
+
+```grit
+language python
+
+`pattern` where {
+  condition1,
+  condition2
+}
+```
+
+## Bad Example
+```python
+# Code that violates the rule
+```
+
+## Good Example
+```python
+# Code that follows the rule
+```
+```
+
+### 示例：禁止硬编码密码
+
+```markdown
+---
+name: no_hardcoded_password
+title: "No hardcoded passwords"
+description: "Passwords must use environment variables, never hardcoded"
+level: error
+tags:
+  - security
+---
+
+# No Hardcoded Passwords
+
+```grit
+language python
+
+`$name = $value` where {
+  $name <: r"(?i)password|passwd|pwd|secret|api_key",
+  // Exclude safe patterns
+  $value <: not r"os\.getenv",
+  $value <: not r"os\.environ",
+  $value <: not r"config\.",
+  $value <: not r"settings\.",
+  $value <: not r"^None$",
+  $value <: not r'^""$',
+  $value <: not r"^''$",
+}
+```
+
+## Bad
+```python
+password = "admin123"
+api_key = "sk-abc123"
+```
+
+## Good
+```python
+password = os.getenv("PASSWORD")
+api_key = os.environ["API_KEY"]
+```
+```
+
+### GritQL 模式语法
+
+- `$var` — 捕获任意代码片段
+- `$...` — 捕获任意参数列表
+- `r"regex"` — 正则表达式匹配
+- `not r"regex"` — 正则表达式不匹配
+- `where { ... }` — 附加条件
+
+### 存放位置
+
+```
+.grit/patterns/your_rule.md
+```
+
+---
+
+## Python AST 引擎：精确代码分析
+
+Python AST 引擎使用 Python 的 `ast` 模块，可以精确分析函数、类、控制流等结构。
+
+### 基本模板
+
+```python
+"""Your rule module."""
+
+import ast
+from pathlib import Path
+from unified_lint.engines.python_ast import rule, Severity, Violation
+
+
+@rule(
+    "your_rule_id",
+    Severity.ERROR,  # 或 Severity.WARN
+    "Description of what this rule checks"
+)
+def check_your_rule(path: Path, tree: ast.Module) -> list[Violation]:
+    """Check your custom rule."""
+    violations = []
+    
+    # 遍历 AST 节点
+    for node in ast.walk(tree):
+        # 检查特定条件
+        if isinstance(node, ast.FunctionDef):
+            # 发现违规
+            violations.append(
+                Violation(
+                    rule_id="your_rule_id",
+                    message=f"Violation message for {node.name}",
+                    file=str(path),
+                    line=node.lineno,
+                    col=node.col_offset + 1,
+                    severity=Severity.ERROR,
+                    engine="python-ast",
+                    fixable=False,
+                )
+            )
+    
+    return violations
+```
+
+### 示例：检查函数参数命名规范
+
+```python
+"""Check that function parameters use snake_case."""
+
+import ast
+from pathlib import Path
+from unified_lint.engines.python_ast import rule, Severity, Violation
+
+
+@rule(
+    "function_param_snake_case",
+    Severity.WARN,
+    "Function parameters should use snake_case naming"
+)
+def check_function_param_snake_case(path: Path, tree: ast.Module) -> list[Violation]:
+    """Check that function parameters use snake_case."""
+    violations = []
+    
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        
+        for arg in node.args.args:
+            param_name = arg.arg
+            
+            # 跳过 self 和 cls
+            if param_name in ("self", "cls"):
+                continue
+            
+            # 检查是否包含大写字母（camelCase）
+            if any(c.isupper() for c in param_name):
+                violations.append(
+                    Violation(
+                        rule_id="function_param_snake_case",
+                        message=f"Parameter '{param_name}' should use snake_case",
+                        file=str(path),
+                        line=arg.lineno,
+                        col=arg.col_offset + 1,
+                        severity=Severity.WARN,
+                        engine="python-ast",
+                        fixable=False,
+                    )
+                )
+    
+    return violations
+```
+
+### 常用 AST 节点类型
+
+| 节点类型 | 说明 | 常用属性 |
+|---------|------|---------|
+| `ast.FunctionDef` | 函数定义 | `name`, `args`, `body`, `lineno` |
+| `ast.ClassDef` | 类定义 | `name`, `bases`, `body`, `lineno` |
+| `ast.Assign` | 赋值语句 | `targets`, `value`, `lineno` |
+| `ast.Return` | 返回语句 | `value`, `lineno` |
+| `ast.For` | for 循环 | `target`, `iter`, `body`, `lineno` |
+| `ast.Call` | 函数调用 | `func`, `args`, `lineno` |
+| `ast.Import` | import 语句 | `names`, `lineno` |
+| `ast.ExceptHandler` | except 块 | `type`, `body`, `lineno` |
+
+### 存放位置
+
+```
+src/unified_lint/engines/your_rule.py
+```
+
+然后在 `src/unified_lint/engines/python_ast.py` 中导入。
+
+---
+
+## Markdown AST 引擎：文档结构分析
+
+Markdown AST 引擎使用 `markdown-it-py`，可以精确分析文档结构。
+
+### 基本模板
+
+```python
+"""Your markdown rule module."""
+
+from pathlib import Path
+from unified_lint.engines.markdown_ast import rule, Severity, Violation
+
+
+@rule(
+    "your_md_rule_id",
+    Severity.WARN,  # 或 Severity.ERROR
+    "Description of what this rule checks"
+)
+def check_your_md_rule(path: Path, tokens: list[dict]) -> list[Violation]:
+    """Check your custom markdown rule."""
+    violations = []
+    
+    # 遍历 tokens
+    for token in tokens:
+        # 检查特定条件
+        if token["type"] == "heading_open":
+            # 发现违规
+            violations.append(
+                Violation(
+                    rule_id="your_md_rule_id",
+                    message="Violation message",
+                    file=str(path),
+                    line=token.get("line", 1),
+                    col=1,
+                    severity=Severity.WARN,
+                    engine="markdown-ast",
+                    fixable=False,
+                )
+            )
+    
+    return violations
+```
+
+### 示例：检查文档必须有标题
+
+```python
+"""Check that documents have at least one h1 heading."""
+
+from pathlib import Path
+from unified_lint.engines.markdown_ast import rule, Severity, Violation
+
+
+@rule(
+    "doc_has_h1",
+    Severity.ERROR,
+    "Documents must have at least one h1 heading"
+)
+def check_doc_has_h1(path: Path, tokens: list[dict]) -> list[Violation]:
+    """Check that document has at least one h1 heading."""
+    violations = []
+    
+    # 检查是否有 h1
+    has_h1 = any(
+        token["type"] == "heading_open" and token["tag"] == "h1"
+        for token in tokens
+    )
+    
+    if not has_h1:
+        violations.append(
+            Violation(
+                rule_id="doc_has_h1",
+                message="Document must have at least one h1 heading",
+                file=str(path),
+                line=1,
+                col=1,
+                severity=Severity.ERROR,
+                engine="markdown-ast",
+                fixable=False,
+            )
+        )
+    
+    return violations
+```
+
+### 常用 Token 类型
+
+| Token 类型 | 说明 | 常用属性 |
+|-----------|------|---------|
+| `heading_open` | 标题开始 | `tag` (h1/h2/...), `line` |
+| `paragraph_open` | 段落开始 | `line` |
+| `link_open` | 链接开始 | `attrs["href"]`, `line` |
+| `image` | 图片 | `attrs["src"]`, `content` (alt text), `line` |
+| `fence` | 代码块 | `info` (language), `content`, `line` |
+| `inline` | 内联内容 | `content`, `children`, `line` |
+
+### 存放位置
+
+```
+src/unified_lint/engines/your_md_rule.py
+```
+
+然后在 `src/unified_lint/engines/markdown_ast.py` 中导入。
+
+---
+
+## 测试你的规则
+
+### 测试模板
+
+```python
+"""Tests for your custom rule."""
+
+import ast
+from pathlib import Path
+from unified_lint.engines.your_module import check_your_rule
+
+
+def test_your_rule_detects_violation(tmp_path):
+    """Test that violation is detected."""
+    # 创建测试文件
+    test_file = tmp_path / "test.py"
+    test_file.write_text("""
+def bad_function(camelCaseParam):
+    pass
+""")
+    
+    # 解析 AST
+    tree = ast.parse(test_file.read_text())
+    
+    # 运行规则
+    violations = check_your_rule(test_file, tree)
+    
+    # 验证
+    assert len(violations) == 1
+    assert "camelCaseParam" in violations[0].message
+    assert violations[0].rule_id == "your_rule_id"
+
+
+def test_your_rule_passes_correct_code(tmp_path):
+    """Test that correct code passes."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text("""
+def good_function(snake_case_param):
+    pass
+""")
+    
+    tree = ast.parse(test_file.read_text())
+    violations = check_your_rule(test_file, tree)
+    
+    assert len(violations) == 0
+```
+
+### 运行测试
+
+```bash
+# 运行所有测试
+pytest tests/
+
+# 运行特定测试文件
+pytest tests/test_your_rule.py
+
+# 运行特定测试
+pytest tests/test_your_rule.py::test_your_rule_detects_violation
+
+# 显示详细输出
+pytest tests/test_your_rule.py -v -s
+```
+
+---
+
+## 完整示例：从零编写一条规则
+
+### 需求
+
+检查 Python 函数不超过 50 行，防止函数过长。
+
+### 步骤 1：选择引擎
+
+检查函数长度 → 需要访问函数定义和行号 → **Python AST 引擎**
+
+### 步骤 2：编写规则
+
+创建 `src/unified_lint/engines/max_function_length.py`:
+
+```python
+"""Check that functions don't exceed a maximum length."""
+
+import ast
+from pathlib import Path
+from unified_lint.engines.python_ast import rule, Severity, Violation
+
+
+MAX_FUNCTION_LINES = 50
+
+
+@rule(
+    "max_function_length",
+    Severity.WARN,
+    f"Functions should not exceed {MAX_FUNCTION_LINES} lines"
+)
+def check_max_function_length(path: Path, tree: ast.Module) -> list[Violation]:
+    """Check that functions don't exceed maximum length."""
+    violations = []
+    
+    for node in ast.walk(tree):
+        if not isinstance(node, ast.FunctionDef):
+            continue
+        
+        # 计算函数长度
+        start_line = node.lineno
+        end_line = node.end_lineno or start_line
+        function_length = end_line - start_line + 1
+        
+        if function_length > MAX_FUNCTION_LINES:
+            violations.append(
+                Violation(
+                    rule_id="max_function_length",
+                    message=f"Function '{node.name}' is {function_length} lines (max {MAX_FUNCTION_LINES})",
+                    file=str(path),
+                    line=node.lineno,
+                    col=node.col_offset + 1,
+                    severity=Severity.WARN,
+                    engine="python-ast",
+                    fixable=False,
+                )
+            )
+    
+    return violations
+```
+
+### 步骤 3：编写测试
+
+创建 `tests/test_max_function_length.py`:
+
+```python
+"""Tests for max_function_length rule."""
+
+import ast
+from pathlib import Path
+from unified_lint.engines.max_function_length import check_max_function_length
+
+
+def test_short_function_passes(tmp_path):
+    """Test that short function passes."""
+    test_file = tmp_path / "test.py"
+    test_file.write_text("""
+def short_function():
+    x = 1
+    y = 2
+    return x + y
+""")
+    
+    tree = ast.parse(test_file.read_text())
+    violations = check_max_function_length(test_file, tree)
+    
+    assert len(violations) == 0
+
+
+def test_long_function_fails(tmp_path):
+    """Test that long function fails."""
+    test_file = tmp_path / "test.py"
+    
+    # 生成 60 行的函数
+    long_body = "\n".join([f"    x{i} = {i}" for i in range(58)])
+    test_file.write_text(f"""
+def long_function():
+{long_body}
+    return x0
+""")
+    
+    tree = ast.parse(test_file.read_text())
+    violations = check_max_function_length(test_file, tree)
+    
+    assert len(violations) == 1
+    assert "long_function" in violations[0].message
+    assert "60 lines" in violations[0].message
+```
+
+### 步骤 4：运行测试
+
+```bash
+pytest tests/test_max_function_length.py -v
+```
+
+预期输出：
+```
+test_max_function_length.py::test_short_function_passes PASSED
+test_max_function_length.py::test_long_function_fails PASSED
+```
+
+### 步骤 5：集成到 unified-lint
+
+编辑 `src/unified_lint/engines/python_ast.py`，添加导入：
+
+```python
+from .max_function_length import check_max_function_length
+```
+
+规则会自动被 `@rule` 装饰器注册。
+
+### 步骤 6：验证
+
+```bash
+cd examples/mario-server
+unified-lint check .
+```
+
+应该看到新规则的检查结果。
+
+---
+
+## 最佳实践
+
+1. **规则 ID 命名**：使用 snake_case，描述性强（如 `no_hardcoded_password`）
+2. **错误消息**：具体说明违规内容和修复建议
+3. **测试覆盖**：至少包含正向测试（检出违规）和反向测试（正确代码通过）
+4. **Severity 选择**：
+   - `ERROR`：必须修复的问题（安全、架构违规）
+   - `WARN`：建议修复的问题（代码风格、最佳实践）
+5. **文档**：在规则文件中包含 Bad/Good 示例
+
+---
+
+## 常见问题
+
+### Q: 为什么我的 GritQL 规则不工作？
+
+GritQL 的 Python parser 是 Alpha 版本，复杂的函数定义匹配不稳定。对于函数/类级别的检查，改用 Python AST 引擎。
+
+### Q: 如何让规则只检查特定目录？
+
+在规则函数中检查 `path` 参数：
+
+```python
+if "api" not in str(path).split("/"):
+    return violations  # 只检查 api/ 目录
+```
+
+### Q: 如何调试规则？
+
+在规则函数中添加 `print` 语句，然后运行 `unified-lint check . --verbose`。
+
+### Q: 规则检出太多误报怎么办？
+
+添加排除条件，例如：
+- 排除特定命名模式
+- 排除特定目录
+- 排除特定文件
+
+参考 `no_hardcoded_password` 规则的排除逻辑。
+
+---
+
+## 参考资源
+
+- [Python AST 文档](https://docs.python.org/3/library/ast.html)
+- [markdown-it-py 文档](https://markdown-it-py.readthedocs.io/)
+- [GritQL 语法](https://docs.grit.io/language/syntax)
+- [unified-lint 源码](./src/unified_lint/engines/)
