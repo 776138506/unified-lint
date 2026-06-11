@@ -1,0 +1,14 @@
+# unified-lint configuration
+language = "python"
+root_package = "myapp"
+
+[code]
+enabled = true
+paths = ["myapp"]
+
+[docs]
+enabled = true
+paths = ["docs"]
+
+[layers]
+enabled = true

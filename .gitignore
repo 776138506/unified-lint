@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+*.egg-info/
+dist/
+build/
+.pytest_cache/
+grit.tar.gz
+grit-x86_64-pc-windows-msvc/

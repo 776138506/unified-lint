@@ -14,8 +14,6 @@ language python
 
 `$name = $value` where {
   $name <: r"(?i)password|passwd|pwd|secret|api_key",
-  $value <: r"^['\"]",
-  $value <: not r"^\$\{",
 }
 ```
 

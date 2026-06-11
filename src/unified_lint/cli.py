@@ -1,0 +1,110 @@
+"""CLI entry point."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from typing import Optional
+
+import typer
+from rich.console import Console
+from rich.table import Table
+
+from .runner import load_config, run_check, run_fix, format_results
+
+app = typer.Typer(
+    name="unified-lint",
+    help="Unified linter: code (GritQL) + docs (GritQL) + architecture (import-linter)",
+    no_args_is_help=True,
+)
+console = Console()
+
+
+@app.command()
+def check(
+    project: Path = typer.Argument(".", help="Project root directory"),
+    verbose: bool = typer.Option(False, "--verbose", "-v"),
+):
+    """Run all lint checks."""
+    project = project.resolve()
+    config = load_config(project)
+    results, exit_code = run_check(project, config)
+
+    output = format_results(results)
+    console.print(output)
+
+    if exit_code == 0:
+        console.print("\n[bold green]ALL PASS[/bold green]")
+    elif exit_code == 1:
+        console.print("\n[bold red]FAILED - errors found[/bold red]")
+    elif exit_code == 2:
+        console.print("\n[bold yellow]WARNINGS[/bold yellow]")
+    elif exit_code >= 4:
+        console.print("\n[bold red]TOOLS MISSING - install dependencies[/bold red]")
+
+    raise typer.Exit(code=exit_code)
+
+
+@app.command()
+def fix(
+    project: Path = typer.Argument(".", help="Project root directory"),
+):
+    """Auto-fix fixable violations."""
+    project = project.resolve()
+    config = load_config(project)
+
+    console.print("[bold]Running auto-fix...[/bold]")
+    results, exit_code = run_fix(project, config)
+
+    output = format_results(results)
+    console.print(output)
+
+    if exit_code == 0:
+        console.print("\n[bold green]All fixed![/bold green]")
+    else:
+        console.print(
+            f"\n[bold yellow]Some issues remain (exit {exit_code})[/bold yellow]"
+        )
+
+    raise typer.Exit(code=exit_code)
+
+
+@app.command()
+def init(
+    project: Path = typer.Argument(".", help="Project root directory"),
+    root_package: str = typer.Option("myapp", help="Root Python package name"),
+):
+    """Initialize unified-lint in a project."""
+    from .installer import run_init
+
+    project = project.resolve()
+    run_init(project, root_package)
+
+
+@app.command(name="rule")
+def rule_list(
+    project: Path = typer.Argument(".", help="Project root directory"),
+):
+    """List available rules."""
+    project = project.resolve()
+    from .rules.registry import discover_rules
+
+    rules = discover_rules(project)
+
+    table = Table(title="Available Rules")
+    table.add_column("Rule ID", style="cyan")
+    table.add_column("Engine", style="magenta")
+    table.add_column("Severity", style="yellow")
+    table.add_column("Description")
+
+    for rule in rules:
+        table.add_row(rule["id"], rule["engine"], rule["severity"], rule["description"])
+
+    console.print(table)
+
+
+def main():
+    app()
+
+
+if __name__ == "__main__":
+    main()
