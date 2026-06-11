@@ -604,6 +604,88 @@ unified-lint check .
 
 ---
 
+## Spec-chain 插件机制
+
+### 插件目录结构
+
+```
+项目根目录/
+├── .unified-lint/
+│   ├── spec-chain.toml          ← 契约链配置
+│   └── rules/                   ← 自定义规则目录
+│       ├── design_to_code.py    ← 用户自定义规则
+│       └── test_coverage.py     ← 另一个自定义规则
+└── specs/
+    ├── prd.md
+    └── ...
+```
+
+### 插件规则写法
+
+```python
+# .unified-lint/rules/my_rule.py
+from unified_lint.engines.spec_chain import chain_rule, Violation, Severity
+from typing import Optional
+
+@chain_rule("my_rule_id")
+def check_my_rule(
+    source: dict,          # 源文档 YAML frontmatter
+    target: dict,          # 目标文档 YAML frontmatter
+    source_file: str,      # 源文件路径
+    target_file: str,      # 目标文件路径
+    params: Optional[dict] = None,  # 配置文件中的参数（可选）
+) -> list[Violation]:
+    """My custom rule: check something specific."""
+    violations = []
+    
+    # Your custom logic here
+    if source.get("required_field") not in target:
+        violations.append(Violation(
+            rule_id="my_rule_id",
+            message="Missing required field",
+            file=target_file,
+            severity=Severity.ERROR,
+            engine="spec-chain",
+        ))
+    
+    return violations
+```
+
+### 配置文件引用插件
+
+```toml
+# .unified-lint/spec-chain.toml
+
+# 使用内置规则
+[[chains]]
+source = "specs/prd.md"
+target = "specs/biz-arch.md"
+rule = "prd_coverage"
+
+# 使用自定义插件规则
+[[chains]]
+source = "specs/design.md"
+target = "src/"
+rule = "design_to_code"    # ← 自动从 .unified-lint/rules/ 加载
+
+# 带参数的插件规则
+[[chains]]
+source = "specs/requirements.md"
+target = "tests/"
+rule = "test_coverage"
+[chains.params]
+coverage_threshold = 80    # ← 传递给插件的参数
+```
+
+### 错误处理
+
+- 规则文件不存在 → 报错：规则 'xxx' 未找到
+- 规则函数返回非 list → 报错：规则 'xxx' 返回类型错误
+- 规则函数抛异常 → 报错：规则 'xxx' 执行失败: {异常信息}
+- 规则文件语法错误 → 报错：规则文件 'xxx.py' 加载失败
+
+---
+
 ## 测试你的规则
 
 ### 测试模板

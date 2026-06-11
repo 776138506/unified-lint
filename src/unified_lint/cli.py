@@ -112,6 +112,7 @@ def rule_list(
 
     # Add spec-chain rules
     sc_engine = SpecChainEngine()
+    sc_engine.configure(project)
     rules.extend([
         {"id": "prd_coverage", "engine": "spec-chain", "severity": "error",
          "description": "PRD requirements covered in business architecture"},
@@ -120,6 +121,18 @@ def rule_list(
         {"id": "api_code_compliance", "engine": "spec-chain", "severity": "error",
          "description": "Code implements all API endpoints"},
     ])
+    
+    # Discover and add custom plugin rules
+    from .engines.spec_chain import _CHAIN_RULES
+    builtin_rules = {"prd_coverage", "metrics_api_compliance", "api_code_compliance"}
+    for rule_id, rule_func in _CHAIN_RULES.items():
+        if rule_id not in builtin_rules:
+            rules.append({
+                "id": rule_id,
+                "engine": "spec-chain",
+                "severity": "error",
+                "description": rule_func.__doc__ or f"Custom chain rule: {rule_id}",
+            })
 
     table = Table(title="Available Rules")
     table.add_column("Rule ID", style="cyan")

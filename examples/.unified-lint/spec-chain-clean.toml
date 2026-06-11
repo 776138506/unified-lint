@@ -1,0 +1,6 @@
+# spec-chain 配置（clean 版本 - 全部通过）
+
+[[chains]]
+source = "specs/prd-clean.md"
+target = "specs/biz-arch-clean.md"
+rule = "prd_coverage"
