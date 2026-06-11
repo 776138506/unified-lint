@@ -88,12 +88,17 @@ def rule_list(
     project = project.resolve()
     from .rules.registry import discover_rules
     from .engines.python_ast import PythonAstEngine
+    from .engines.markdown_ast import MarkdownAstEngine
 
     rules = discover_rules(project)
 
     # Add python-ast rules
     ast_engine = PythonAstEngine()
     rules.extend(ast_engine.get_rules())
+
+    # Add markdown-ast rules
+    md_engine = MarkdownAstEngine()
+    rules.extend(md_engine.get_rules())
 
     table = Table(title="Available Rules")
     table.add_column("Rule ID", style="cyan")

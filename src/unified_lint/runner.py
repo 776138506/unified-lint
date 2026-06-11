@@ -9,6 +9,7 @@ from .engines.base import EngineResult, Severity
 from .engines.grit import GritEngine
 from .engines.import_linter import ImportLinterEngine
 from .engines.python_ast import PythonAstEngine
+from .engines.markdown_ast import MarkdownAstEngine
 
 # Try tomllib (3.11+) or tomli
 try:
@@ -39,6 +40,7 @@ def get_engines(config: dict) -> list:
     ):
         engines.append(GritEngine())
         engines.append(PythonAstEngine())
+        engines.append(MarkdownAstEngine())
 
     if config.get("layers", {}).get("enabled", True):
         engines.append(ImportLinterEngine())
