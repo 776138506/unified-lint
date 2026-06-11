@@ -1,6 +1,6 @@
 # unified-lint 自定义规则开发指南
 
-本指南教你如何为 unified-lint 编写自定义规则。unified-lint 支持五种引擎，每种引擎适用于不同类型的检查。
+本指南教你如何为 unified-lint 编写自定义规则。unified-lint 支持六种引擎，每种引擎适用于不同类型的检查。
 
 ## 目录
 
@@ -9,8 +9,9 @@
 3. [Python AST 引擎：精确代码分析](#python-ast-引擎精确代码分析)
 4. [Markdown AST 引擎：文档结构分析](#markdown-ast-引擎文档结构分析)
 5. [Tree-sitter 引擎：Rust 和 C# 支持](#tree-sitter-引擎rust-和-c-支持)
-6. [测试你的规则](#测试你的规则)
-7. [完整示例：从零编写一条规则](#完整示例从零编写一条规则)
+6. [Spec-chain 引擎：文档阶段一致性](#spec-chain-引擎文档阶段一致性)
+7. [测试你的规则](#测试你的规则)
+8. [完整示例：从零编写一条规则](#完整示例从零编写一条规则)
 
 ---
 
@@ -24,6 +25,7 @@
 | **Python AST** | 精确的 Python 代码分析 | 100% 准确，完整 AST 访问 | 仅支持 Python |
 | **Markdown AST** | 文档结构和内容检查 | 精确解析 Markdown 元素 | 仅支持 Markdown |
 | **Tree-sitter** | Rust 和 C# 代码分析 | 精确 AST，多语言扩展性强 | 需安装语言 grammar |
+| **Spec-chain** | 文档阶段一致性检查 | 检查上下游文档契约 | 仅支持 YAML frontmatter |
 | **import-linter** | Python 架构依赖检查 | 分层架构强制执行 | 仅支持 Python |
 
 ### 决策树
@@ -514,6 +516,90 @@ self.languages["go"] = Language(tree_sitter_go.language())
 # 3. 添加对应的 check 方法
 def _check_go_file(self, file_path, project_root):
     ...
+```
+
+---
+
+## Spec-chain 引擎：文档阶段一致性
+
+Spec-chain 引擎检查不同阶段文档之间的契约一致性。例如：
+- PRD 需求是否都在业务架构中覆盖
+- 量化标准中的性能指标是否在 API 设计中满足
+- API 文档中的接口是否都在代码中实现
+
+### 配置
+
+在 `.unified-lint/spec-chain.toml` 中定义契约链：
+
+```toml
+[[chains]]
+source = "specs/prd.md"
+target = "specs/biz-arch.md"
+rule = "prd_coverage"
+
+[[chains]]
+source = "specs/metrics.md"
+target = "specs/api.md"
+rule = "metrics_api_compliance"
+```
+
+### 文档格式
+
+每个阶段的文档使用 YAML frontmatter：
+
+```yaml
+---
+stage: prd
+id: prd-v1
+requirements:
+  - id: REQ-001
+    name: 用户登录
+    priority: P0
+  - id: REQ-002
+    name: 订单管理
+    priority: P0
+---
+
+# PRD 文档正文
+```
+
+### 内置规则
+
+| 规则 | 用途 | 检查内容 |
+|------|------|----------|
+| `prd_coverage` | PRD 需求覆盖 | 业务架构必须覆盖所有 PRD 需求 |
+| `metrics_api_compliance` | API 性能合规 | API 延迟/可用性必须满足量化标准 |
+| `api_code_compliance` | 代码实现 | 代码必须实现所有 API 接口 |
+
+### 量化标准格式
+
+```yaml
+---
+stage: metrics
+id: metrics-v1
+core_metrics:
+  latency_p95_ms: 200      # P95 延迟目标（毫秒）
+  latency_p99_ms: 500      # P99 延迟目标
+  availability: 99.9       # 可用性目标（百分比）
+  error_rate_percent: 0.1  # 错误率目标
+important_metrics:
+  throughput_qps: 1000     # 吞吐量目标
+  concurrency: 500         # 并发数目标
+optional_metrics:
+  cache_hit_rate_percent: 80
+---
+```
+
+### E2E 示例
+
+```bash
+# 运行所有引擎检查
+unified-lint check .
+
+# 输出示例（spec-chain 部分）：
+# --- spec-chain ---
+#    specs/biz-arch.md:0 prd_coverage: PRD requirement 'REQ-003' not covered
+#    specs/api.md:0 metrics_api_compliance: Endpoint /api/v1/orders latency 250ms > 200ms
 ```
 
 ---
