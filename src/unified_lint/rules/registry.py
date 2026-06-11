@@ -28,6 +28,14 @@ language python
 
 `$name = $value` where {
   $name <: r"(?i)password|passwd|pwd|secret|api_key",
+  // Exclude safe patterns: environment variables and config
+  $value <: not r"os\.getenv",
+  $value <: not r"os\.environ",
+  $value <: not r"config\.",
+  $value <: not r"settings\.",
+  $value <: not r"^None$",
+  $value <: not r'^""$',
+  $value <: not r"^''$",
 }
 ```
 

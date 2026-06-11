@@ -8,6 +8,7 @@ from typing import Optional
 from .engines.base import EngineResult, Severity
 from .engines.grit import GritEngine
 from .engines.import_linter import ImportLinterEngine
+from .engines.python_ast import PythonAstEngine
 
 # Try tomllib (3.11+) or tomli
 try:
@@ -37,6 +38,7 @@ def get_engines(config: dict) -> list:
         "enabled", True
     ):
         engines.append(GritEngine())
+        engines.append(PythonAstEngine())
 
     if config.get("layers", {}).get("enabled", True):
         engines.append(ImportLinterEngine())
@@ -57,8 +59,6 @@ def run_check(
 
     engines = get_engines(config)
     results: list[EngineResult] = []
-    # Track worst exit code. Lower severity number = more severe.
-    # 0=pass, 1=error, 2=warn, 3=info, 4=missing
     worst_exit = 0
 
     for engine in engines:
@@ -68,7 +68,7 @@ def run_check(
                     engine_name=engine.name, error=f"{engine.name} not available"
                 )
             )
-            worst_exit = 4  # missing tool is always worst-case signal
+            worst_exit = 4
             continue
 
         grit_paths = []
@@ -84,13 +84,10 @@ def run_check(
         if result.error:
             worst_exit = 4
         elif result.has_errors:
-            # ERROR is the most severe - set to 1 unless already missing
             if worst_exit != 4:
                 worst_exit = 1
         elif result.violations:
-            # Find the most severe violation
             best_sev = min(v.severity.exit_priority for v in result.violations)
-            # Only upgrade: don't overwrite error(1) with warn(2)
             if worst_exit == 0 or best_sev < worst_exit:
                 worst_exit = best_sev
 
