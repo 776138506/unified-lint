@@ -320,7 +320,6 @@ unified-lint check .
 | `ruff` / `pylint` / `eslint` | 处理内置规则，unified-lint 处理自定义规则——**互补不冲突** |
 | `MegaLinter` | 是 linter 聚合器，unified-lint 是统一引擎 |
 | `Biome v2 + GritQL plugin` | 只覆盖 JS/TS，unified-lint 覆盖多语言 |
-| `doc-gov` | 思想已被吸收进 spec-chain 引擎 |
 | `Structure101` / `dependency-cruiser` | 商业或 JS 专用，统一架构层用 import-linter |
 
 **推荐组合**：`ruff`（内置规则）+ `unified-lint`（自定义规则 + 文档 + 架构）。
