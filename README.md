@@ -324,11 +324,21 @@ unified-lint check .
 
 每个 skill 目录结构：
 
-
+```
+skills/<skill-name>/
+├── SKILL.md              ← 触发词 + 工作流
+└── references/           ← 配套参考文档（pitfalls、配置示例等）
+```
 
 集成到 agent：
 
+```bash
+# Hermes
+cp -r skills/<skill-name> ~/.hermes/skills/software-development/
 
+# Claude Code
+cp -r skills/<skill-name> .claude/skills/
+```
 
 ## 项目链接
 
