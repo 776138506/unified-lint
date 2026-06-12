@@ -1,0 +1,101 @@
+# PRD - 产品需求文档
+# 阶段 1：定义产品目标和需求
+
+stage: prd
+id: prd-v1
+
+metadata:
+  author: "产品经理"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段示例
+  x_project: "用户管理系统"
+  x_team: "后端团队"
+
+# 需求列表
+requirements:
+  - id: REQ-001
+    name: "用户登录"
+    priority: "P0"
+    status: "draft"
+    description: "支持多种登录方式"
+    acceptance_criteria:
+      - "支持用户名密码登录"
+      - "支持 OAuth2.0 第三方登录（Google、GitHub）"
+      - "登录状态保持 7 天"
+      - "支持记住密码功能"
+    business_rules:
+      - id: BR-001
+        condition: "用户连续登录失败 5 次"
+        action: "锁定账户 30 分钟"
+        severity: "high"
+      - id: BR-002
+        condition: "用户使用 OAuth2.0 登录"
+        action: "自动创建本地账户"
+        severity: "medium"
+    # 扩展字段
+    x_security_level: "high"
+    x_ui_complexity: "medium"
+
+  - id: REQ-002
+    name: "订单管理"
+    priority: "P0"
+    status: "draft"
+    description: "用户可以管理自己的订单"
+    acceptance_criteria:
+      - "用户可以创建订单"
+      - "用户可以查看订单列表（分页）"
+      - "用户可以查看订单详情"
+      - "用户可以取消未支付的订单"
+      - "用户可以申请退款"
+    business_rules:
+      - id: BR-003
+        condition: "订单创建后 30 分钟未支付"
+        action: "自动取消订单"
+        severity: "medium"
+      - id: BR-004
+        condition: "订单已发货"
+        action: "禁止取消订单"
+        severity: "high"
+    # 扩展字段
+    x_payment_integration: "required"
+    x_notification_required: true
+
+  - id: REQ-003
+    name: "数据导出"
+    priority: "P1"
+    status: "draft"
+    description: "支持导出业务数据"
+    acceptance_criteria:
+      - "支持导出订单数据为 CSV"
+      - "支持按时间范围筛选"
+      - "支持按状态筛选"
+      - "导出文件有效期 24 小时"
+      - "单次导出最大 10000 条记录"
+    business_rules:
+      - id: BR-005
+        condition: "导出数据量超过 10000 条"
+        action: "分批导出并发送邮件通知"
+        severity: "low"
+    # 扩展字段
+    x_async_export: true
+    x_storage_backend: "oss"
+
+# 依赖关系（扩展点）
+dependencies:
+  - id: REQ-002
+    depends_on: [REQ-001]
+    type: "strong"
+  - id: REQ-003
+    depends_on: [REQ-002]
+    type: "weak"
+
+# 风险评估（扩展点）
+risks:
+  - id: RISK-001
+    description: "OAuth2.0 集成可能延迟"
+    probability: "medium"
+    impact: "high"
+    mitigation: "提前申请 OAuth 应用凭证"

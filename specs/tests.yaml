@@ -1,0 +1,268 @@
+# 测试策略 - 测试用例与覆盖
+# 定义测试策略、测试用例和覆盖要求
+
+stage: tests
+id: tests-v1
+
+metadata:
+  author: "测试工程师"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段
+  x_test_framework: "pytest"
+  x_coverage_tool: "coverage.py"
+  x_ci_integration: "GitHub Actions"
+
+# 覆盖的需求和 API
+covers_requirements:
+  - REQ-001
+  - REQ-002
+  - REQ-003
+covers_api: "api-v1"
+
+# 测试策略
+strategy:
+  # 测试金字塔
+  pyramid:
+    unit:
+      percentage: 70
+      description: "单元测试，覆盖核心业务逻辑"
+      # 扩展字段
+      x_max_duration: "10 minutes"
+      x_parallel: true
+
+    integration:
+      percentage: 20
+      description: "集成测试，覆盖模块间交互"
+      # 扩展字段
+      x_max_duration: "30 minutes"
+      x_environment: "test"
+
+    e2e:
+      percentage: 10
+      description: "端到端测试，覆盖用户场景"
+      # 扩展字段
+      x_max_duration: "60 minutes"
+      x_browser: "chromedriver"
+
+  # 覆盖要求
+  coverage:
+    line_coverage: 80
+    branch_coverage: 70
+    function_coverage: 90
+    # 扩展字段
+    x_fail_threshold: 70
+    x_warn_threshold: 80
+
+# 测试用例
+test_cases:
+  # 单元测试
+  unit:
+    # 用户认证测试
+    - id: UT-001
+      name: "用户登录成功"
+      requirement: "REQ-001"
+      component: "AuthService"
+      description: "使用正确的用户名密码登录"
+      steps:
+        - "创建测试用户"
+        - "调用 authenticate 方法"
+        - "验证返回 Token"
+      expected_result: "返回有效的 JWT Token"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "100ms"
+
+    - id: UT-002
+      name: "用户登录失败 - 密码错误"
+      requirement: "REQ-001"
+      component: "AuthService"
+      description: "使用错误的密码登录"
+      steps:
+        - "创建测试用户"
+        - "调用 authenticate 方法，使用错误密码"
+        - "验证返回错误"
+      expected_result: "返回 INVALID_CREDENTIALS 错误"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "100ms"
+
+    - id: UT-003
+      name: "用户登录失败 - 账户锁定"
+      requirement: "REQ-001"
+      component: "AuthService"
+      description: "连续登录失败 5 次后账户锁定"
+      steps:
+        - "创建测试用户"
+        - "连续调用 authenticate 方法 5 次，使用错误密码"
+        - "验证账户状态为 locked"
+      expected_result: "账户状态变为 locked"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "500ms"
+
+    # 订单管理测试
+    - id: UT-004
+      name: "创建订单成功"
+      requirement: "REQ-002"
+      component: "OrderService"
+      description: "使用有效数据创建订单"
+      steps:
+        - "创建测试用户"
+        - "调用 createOrder 方法"
+        - "验证订单创建成功"
+      expected_result: "返回订单对象，状态为 pending"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "200ms"
+
+    - id: UT-005
+      name: "取消订单成功"
+      requirement: "REQ-002"
+      component: "OrderService"
+      description: "取消未支付的订单"
+      steps:
+        - "创建测试订单（状态 pending）"
+        - "调用 cancelOrder 方法"
+        - "验证订单状态为 cancelled"
+      expected_result: "订单状态变为 cancelled"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "200ms"
+
+    - id: UT-006
+      name: "取消订单失败 - 已发货"
+      requirement: "REQ-002"
+      component: "OrderService"
+      description: "尝试取消已发货的订单"
+      steps:
+        - "创建测试订单（状态 shipped）"
+        - "调用 cancelOrder 方法"
+        - "验证返回错误"
+      expected_result: "返回 ORDER_ALREADY_SHIPPED 错误"
+      # 扩展字段
+      x_priority: "P1"
+      x_automated: true
+      x_duration: "200ms"
+
+  # 集成测试
+  integration:
+    - id: IT-001
+      name: "用户登录 API 测试"
+      requirement: "REQ-001"
+      component: "API"
+      description: "测试登录 API 端点"
+      steps:
+        - "发送 POST /api/v1/auth/login 请求"
+        - "验证响应状态码为 200"
+        - "验证返回 Token"
+      expected_result: "返回有效的 JWT Token"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "1s"
+      x_environment: "test"
+
+    - id: IT-002
+      name: "订单列表 API 测试"
+      requirement: "REQ-002"
+      component: "API"
+      description: "测试订单列表 API 端点"
+      steps:
+        - "创建测试订单"
+        - "发送 GET /api/v1/orders 请求"
+        - "验证响应状态码为 200"
+        - "验证返回订单列表"
+      expected_result: "返回分页的订单列表"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "2s"
+      x_environment: "test"
+
+  # 端到端测试
+  e2e:
+    - id: E2E-001
+      name: "用户登录流程"
+      requirement: "REQ-001"
+      component: "全流程"
+      description: "测试完整的用户登录流程"
+      steps:
+        - "打开登录页面"
+        - "输入用户名密码"
+        - "点击登录按钮"
+        - "验证跳转到首页"
+        - "验证显示用户信息"
+      expected_result: "成功登录并跳转到首页"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "10s"
+      x_browser: "chromedriver"
+
+    - id: E2E-002
+      name: "订单创建流程"
+      requirement: "REQ-002"
+      component: "全流程"
+      description: "测试完整的订单创建流程"
+      steps:
+        - "用户登录"
+        - "选择商品"
+        - "点击购买"
+        - "填写订单信息"
+        - "确认支付"
+        - "验证订单创建成功"
+      expected_result: "订单创建成功，状态为 pending"
+      # 扩展字段
+      x_priority: "P0"
+      x_automated: true
+      x_duration: "30s"
+      x_browser: "chromedriver"
+
+# 测试数据管理
+test_data:
+  strategy: "fixtures"
+  # 扩展字段
+  x_fixtures_path: "tests/fixtures"
+  x_factory_pattern: true
+  x_cleanup_after_test: true
+
+# 测试环境
+environments:
+  - name: "unit"
+    description: "单元测试环境"
+    database: "sqlite:///:memory:"
+    # 扩展字段
+    x_isolation: "test"
+    x_parallel: true
+
+  - name: "integration"
+    description: "集成测试环境"
+    database: "postgresql://test:test@localhost:5432/test_db"
+    # 扩展字段
+    x_isolation: "test"
+    x_cleanup_before: true
+
+  - name: "e2e"
+    description: "端到端测试环境"
+    database: "postgresql://test:test@localhost:5432/e2e_db"
+    # 扩展字段
+    x_isolation: "test"
+    x_cleanup_before: true
+    x_mock_external: true
+
+# 测试报告
+reporting:
+  format: "JUnit XML"
+  output_dir: "test-results"
+  # 扩展字段
+  x_coverage_report: true
+  x_html_report: true
+  x_slack_notification: true

@@ -1,0 +1,207 @@
+# 角色权限 - RBAC 权限矩阵
+# 定义系统角色和权限
+
+stage: roles
+id: roles-v1
+
+metadata:
+  author: "安全工程师"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段
+  x_auth_model: "RBAC"
+  x_default_role: "user"
+
+# 角色定义
+roles:
+  - id: admin
+    name: "管理员"
+    description: "系统管理员，拥有所有权限"
+    # 扩展字段
+    x_is_system: true
+    x_max_users: 5
+    x_requires_mfa: true
+
+  - id: user
+    name: "普通用户"
+    description: "普通注册用户"
+    # 扩展字段
+    x_is_default: true
+    x_auto_assign: true
+
+  - id: guest
+    name: "访客"
+    description: "未登录用户"
+    # 扩展字段
+    x_is_system: true
+    x_auto_assign: false
+
+# 权限定义
+permissions:
+  # 用户管理权限
+  - id: user:create
+    name: "创建用户"
+    description: "创建新用户账户"
+    resource: "user"
+    action: "create"
+    # 扩展字段
+    x_requires_approval: false
+    x_audit_log: true
+
+  - id: user:read
+    name: "查看用户"
+    description: "查看用户信息"
+    resource: "user"
+    action: "read"
+    # 扩展字段
+    x_scope: "self_or_admin"
+
+  - id: user:update
+    name: "更新用户"
+    description: "更新用户信息"
+    resource: "user"
+    action: "update"
+    # 扩展字段
+    x_scope: "self_or_admin"
+    x_audit_log: true
+
+  - id: user:delete
+    name: "删除用户"
+    description: "删除用户账户"
+    resource: "user"
+    action: "delete"
+    # 扩展字段
+    x_requires_approval: true
+    x_audit_log: true
+
+  # 订单管理权限
+  - id: order:create
+    name: "创建订单"
+    description: "创建新订单"
+    resource: "order"
+    action: "create"
+    # 扩展字段
+    x_rate_limit: "10/hour"
+
+  - id: order:read
+    name: "查看订单"
+    description: "查看订单信息"
+    resource: "order"
+    action: "read"
+    # 扩展字段
+    x_scope: "own_orders_only"
+
+  - id: order:update
+    name: "更新订单"
+    description: "更新订单状态"
+    resource: "order"
+    action: "update"
+    # 扩展字段
+    x_scope: "admin_only"
+
+  - id: order:delete
+    name: "删除订单"
+    description: "删除订单"
+    resource: "order"
+    action: "delete"
+    # 扩展字段
+    x_requires_approval: true
+    x_audit_log: true
+
+  # 导出权限
+  - id: export:create
+    name: "创建导出"
+    description: "创建数据导出任务"
+    resource: "export"
+    action: "create"
+    # 扩展字段
+    x_rate_limit: "5/day"
+    x_max_records: 10000
+
+  - id: export:read
+    name: "查看导出"
+    description: "查看导出任务状态"
+    resource: "export"
+    action: "read"
+    # 扩展字段
+    x_scope: "own_exports_only"
+
+  # 系统管理权限
+  - id: system:config
+    name: "系统配置"
+    description: "查看和修改系统配置"
+    resource: "system"
+    action: "config"
+    # 扩展字段
+    x_requires_mfa: true
+    x_audit_log: true
+
+  - id: system:monitor
+    name: "系统监控"
+    description: "查看系统监控数据"
+    resource: "system"
+    action: "monitor"
+    # 扩展字段
+    x_read_only: true
+
+# 角色-权限映射
+role_permissions:
+  - role: admin
+    permissions:
+      - user:create
+      - user:read
+      - user:update
+      - user:delete
+      - order:create
+      - order:read
+      - order:update
+      - order:delete
+      - export:create
+      - export:read
+      - system:config
+      - system:monitor
+
+  - role: user
+    permissions:
+      - user:read
+      - user:update
+      - order:create
+      - order:read
+      - export:create
+      - export:read
+
+  - role: guest
+    permissions:
+      - user:read
+
+# 权限继承
+inheritance:
+  - parent: admin
+    child: user
+    description: "管理员继承普通用户的所有权限"
+
+# 权限约束
+constraints:
+  - name: "订单操作限制"
+    description: "用户只能操作自己的订单"
+    permission: "order:*"
+    condition: "user_id == order.user_id"
+    # 扩展字段
+    x_error_message: "无权操作他人的订单"
+
+  - name: "导出限制"
+    description: "用户每天最多导出 5 次"
+    permission: "export:create"
+    condition: "today_export_count < 5"
+    # 扩展字段
+    x_error_message: "今日导出次数已达上限"
+
+# 审计日志
+audit:
+  enabled: true
+  # 扩展字段
+  x_log_level: "info"
+  x_retention_days: 90
+  x_sensitive_fields: ["password", "token"]

@@ -1,0 +1,144 @@
+# 量化标准 - 性能与质量指标
+# 阶段 4：定义可量化的验收标准
+
+stage: metrics
+id: metrics-v1
+
+metadata:
+  author: "架构师"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段
+  x_measurement_baseline: "2026-Q2"
+  x_review_cycle: "monthly"
+
+# 覆盖的功能
+covers_features:
+  - "用户登录"
+  - "订单管理"
+  - "数据导出"
+
+# 核心指标（必须满足）
+core_metrics:
+  # 延迟指标
+  latency:
+    p95_ms: 200
+    p99_ms: 500
+    max_ms: 1000
+    # 扩展字段
+    x_measurement_point: "API Gateway"
+    x_tolerance: "10%"
+
+  # 可用性指标
+  availability:
+    target_percent: 99.9
+    measurement_period: "monthly"
+    # 扩展字段
+    x_downtime_budget_minutes: 43
+    x_maintenance_window: "Sunday 02:00-04:00"
+
+  # 错误率指标
+  error_rate:
+    target_percent: 0.1
+    measurement_period: "daily"
+    # 扩展字段
+    x_error_types: ["5xx", "timeout", "validation"]
+    x_excluded_paths: ["/health", "/metrics"]
+
+  # 吞吐量指标
+  throughput:
+    target_qps: 1000
+    peak_qps: 5000
+    # 扩展字段
+    x_ramp_up_time: "5 minutes"
+    x_load_balancer: "round-robin"
+
+# 重要指标（推荐满足）
+important_metrics:
+  # 并发指标
+  concurrency:
+    target: 500
+    max: 2000
+    # 扩展字段
+    x_connection_pool_size: 100
+    x_queue_size: 1000
+
+  # 响应大小指标
+  response_size:
+    max_kb: 100
+    avg_kb: 50
+    # 扩展字段
+    x_compression: "gzip"
+    x_pagination_default: 20
+
+  # 数据量指标
+  data_volume:
+    max_export_records: 10000
+    max_upload_size_mb: 10
+    # 扩展字段
+    x_batch_size: 1000
+    x_streaming_threshold: 5000
+
+# 可选指标（锦上添花）
+optional_metrics:
+  # 缓存指标
+  cache:
+    hit_rate_percent: 80
+    ttl_seconds: 300
+    # 扩展字段
+    x_cache_backend: "redis"
+    x_invalidation_strategy: "ttl"
+
+  # 资源使用指标
+  resources:
+    cpu_usage_percent: 70
+    memory_usage_percent: 80
+    # 扩展字段
+    x_auto_scaling: true
+    x_scale_up_threshold: 80
+    x_scale_down_threshold: 30
+
+# 按接口的特殊指标（扩展点）
+endpoint_specific:
+  - path: "/api/v1/login"
+    metrics:
+      latency_p95_ms: 150
+      availability: 99.99
+    # 扩展字段
+    x_mfa_required: false
+    x_rate_limit: "10/minute"
+
+  - path: "/api/v1/orders"
+    metrics:
+      latency_p95_ms: 250
+      availability: 99.9
+    # 扩展字段
+    x_caching_enabled: true
+    x_cache_ttl: 60
+
+  - path: "/api/v1/export"
+    metrics:
+      latency_p95_ms: 5000
+      availability: 99.5
+    # 扩展字段
+    x_async: true
+    x_max_concurrent_jobs: 10
+
+# 监控与告警（扩展点）
+monitoring:
+  dashboards:
+    - name: "API 性能看板"
+      url: "https://grafana.example.com/api-performance"
+    - name: "业务指标看板"
+      url: "https://grafana.example.com/business-metrics"
+  alerts:
+    - name: "延迟超标"
+      condition: "p95_latency > 200ms for 5 minutes"
+      severity: "warning"
+      channels: ["slack", "email"]
+    - name: "可用性下降"
+      condition: "availability < 99.9% for 1 hour"
+      severity: "critical"
+      channels: ["pagerduty", "slack"]

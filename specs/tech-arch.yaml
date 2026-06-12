@@ -1,0 +1,178 @@
+# 技术架构 - 技术选型与分层
+# 阶段 5：定义技术选型和架构分层
+
+stage: tech-arch
+id: tech-arch-v1
+
+metadata:
+  author: "架构师"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段
+  x_architecture_style: "microservices"
+  x_deployment_model: "kubernetes"
+
+# 覆盖的业务架构
+covers_biz_arch: "biz-arch-v1"
+
+# 技术栈
+tech_stack:
+  # 后端技术
+  backend:
+    language: "Python"
+    version: "3.11"
+    framework: "FastAPI"
+    framework_version: "0.100+"
+    # 扩展字段
+    x_async_support: true
+    x_type_hints: "strict"
+
+  # 数据库
+  database:
+    primary:
+      type: "PostgreSQL"
+      version: "15"
+      purpose: "业务数据存储"
+      # 扩展字段
+      x_connection_pool: "asyncpg"
+      x_max_connections: 100
+    cache:
+      type: "Redis"
+      version: "7"
+      purpose: "会话缓存、热点数据"
+      # 扩展字段
+      x_cluster_mode: false
+      x_max_memory: "2GB"
+
+  # 消息队列
+  messaging:
+    type: "RabbitMQ"
+    version: "3.12"
+    purpose: "异步任务、事件驱动"
+    # 扩展字段
+    x_durable_queues: true
+    x_prefetch_count: 10
+
+  # 对象存储
+  storage:
+    type: "MinIO"
+    purpose: "文件存储（导出文件）"
+    # 扩展字段
+    x_bucket: "exports"
+    x_expiration_days: 1
+
+  # 容器化
+  container:
+    runtime: "Docker"
+    orchestration: "Kubernetes"
+    # 扩展字段
+    x_base_image: "python:3.11-slim"
+    x_health_check: "/health"
+
+# 架构分层
+layers:
+  - name: "API 层"
+    description: "处理 HTTP 请求和响应"
+    components:
+      - name: "API Gateway"
+        technology: "Kong"
+        responsibility: "路由、认证、限流"
+      - name: "FastAPI Application"
+        technology: "FastAPI"
+        responsibility: "请求处理、参数校验"
+    # 扩展字段
+    x_rate_limiting: true
+    x_cors_enabled: true
+
+  - name: "服务层"
+    description: "业务逻辑处理"
+    components:
+      - name: "AuthService"
+        technology: "Python"
+        responsibility: "用户认证与授权"
+      - name: "OrderService"
+        technology: "Python"
+        responsibility: "订单业务逻辑"
+      - name: "ExportService"
+        technology: "Python"
+        responsibility: "数据导出逻辑"
+    # 扩展字段
+    x_dependency_injection: true
+    x_unit_testable: true
+
+  - name: "数据层"
+    description: "数据访问和存储"
+    components:
+      - name: "ORM"
+        technology: "SQLAlchemy"
+        responsibility: "数据库访问"
+      - name: "Cache Client"
+        technology: "redis-py"
+        responsibility: "缓存操作"
+      - name: "Message Producer"
+        technology: "pika"
+        responsibility: "消息发布"
+    # 扩展字段
+    x_repository_pattern: true
+    x_unit_of_work: true
+
+# 依赖关系
+dependencies:
+  - from: "API 层"
+    to: "服务层"
+    type: "sync"
+    protocol: "HTTP/gRPC"
+  - from: "服务层"
+    to: "数据层"
+    type: "sync"
+    protocol: "ORM/Cache Client"
+  - from: "服务层"
+    to: "消息队列"
+    type: "async"
+    protocol: "AMQP"
+
+# 部署架构（扩展点）
+deployment:
+  environment:
+    - name: "development"
+      description: "开发环境"
+      url: "https://dev.example.com"
+    - name: "staging"
+      description: "预发布环境"
+      url: "https://staging.example.com"
+    - name: "production"
+      description: "生产环境"
+      url: "https://api.example.com"
+  # 扩展字段
+  x_ci_cd: "GitHub Actions"
+  x_container_registry: "Docker Hub"
+  x_monitoring: "Prometheus + Grafana"
+
+# 安全架构（扩展点）
+security:
+  authentication:
+    method: "JWT"
+    token_expiry: "7 days"
+    refresh_token: true
+  authorization:
+    model: "RBAC"
+    roles: ["admin", "user", "guest"]
+  # 扩展字段
+  x_encryption_at_rest: true
+  x_encryption_in_transit: true
+  x_audit_logging: true
+
+# 性能优化（扩展点）
+performance:
+  caching:
+    strategy: "write-through"
+    ttl: "5 minutes"
+  connection_pooling:
+    database: 100
+    redis: 50
+  # 扩展字段
+  x_cdn_enabled: true
+  x_compression: "gzip"
+  x_lazy_loading: true

@@ -1,0 +1,257 @@
+# 决策记录 - ADR (Architecture Decision Records)
+# 记录重要的技术决策和选型理由
+
+stage: decisions
+id: decisions-v1
+
+metadata:
+  author: "架构师"
+  created: "2026-06-12"
+  updated: "2026-06-12"
+  version: "1.0"
+  status: "draft"
+  # 扩展字段
+  x_decision_count: 5
+  x_last_review: "2026-06-12"
+
+# 决策列表
+decisions:
+  - id: ADR-001
+    title: "选择 Python + FastAPI 作为后端技术栈"
+    date: "2026-06-12"
+    status: "accepted"
+    # 决策背景
+    context:
+      description: "需要选择后端开发语言和框架"
+      constraints:
+        - "团队熟悉 Python"
+        - "需要高性能异步支持"
+        - "需要快速开发"
+      stakeholders: ["架构师", "后端开发"]
+    # 决策选项
+    options:
+      - name: "Python + FastAPI"
+        pros:
+          - "团队熟悉，学习成本低"
+          - "异步支持好，性能高"
+          - "类型提示完善，IDE 支持好"
+          - "社区活跃，生态丰富"
+        cons:
+          - "GIL 限制 CPU 密集型任务"
+          - "部署相对复杂"
+      - name: "Go + Gin"
+        pros:
+          - "性能极高"
+          - "部署简单"
+          - "并发模型优秀"
+        cons:
+          - "团队需要学习"
+          - "开发效率相对低"
+      - name: "Java + Spring Boot"
+        pros:
+          - "企业级成熟度高"
+          - "生态完善"
+        cons:
+          - "开发效率低"
+          - "团队不熟悉"
+    # 最终决策
+    chosen:
+      option: "Python + FastAPI"
+      reason: "团队熟悉度高，开发效率优先，异步支持满足性能要求"
+    # 影响范围
+    impact:
+      affected_components: ["所有后端服务"]
+      migration_required: false
+      training_required: false
+    # 扩展字段
+    x_review_date: "2026-09-12"
+    x_supersedes: null
+
+  - id: ADR-002
+    title: "使用 PostgreSQL 作为主数据库"
+    date: "2026-06-12"
+    status: "accepted"
+    context:
+      description: "需要选择关系型数据库"
+      constraints:
+        - "需要支持复杂查询"
+        - "需要 JSON 数据类型"
+        - "需要事务支持"
+      stakeholders: ["架构师", "DBA"]
+    options:
+      - name: "PostgreSQL"
+        pros:
+          - "功能强大，支持 JSON/JSONB"
+          - "社区活跃，持续更新"
+          - "性能优秀"
+        cons:
+          - "运维复杂度相对高"
+      - name: "MySQL"
+        pros:
+          - "使用广泛，生态成熟"
+          - "运维简单"
+        cons:
+          - "JSON 支持相对较弱"
+          - "功能不如 PostgreSQL 丰富"
+      - name: "MongoDB"
+        pros:
+          - "Schema 灵活"
+          - "水平扩展容易"
+        cons:
+          - "事务支持弱"
+          - "不适合复杂关系查询"
+    chosen:
+      option: "PostgreSQL"
+      reason: "功能最全面，JSON 支持好，适合业务需求"
+    impact:
+      affected_components: ["数据层", "数据模型"]
+      migration_required: false
+      training_required: true
+    # 扩展字段
+    x_version: "15"
+    x_cloud_service: "RDS PostgreSQL"
+
+  - id: ADR-003
+    title: "采用 JWT 进行身份认证"
+    date: "2026-06-12"
+    status: "accepted"
+    context:
+      description: "需要选择身份认证方案"
+      constraints:
+        - "需要无状态认证"
+        - "需要支持多端登录"
+        - "需要安全可靠"
+      stakeholders: ["架构师", "安全工程师"]
+    options:
+      - name: "JWT"
+        pros:
+          - "无状态，易于扩展"
+          - "跨平台支持好"
+          - "社区标准"
+        cons:
+          - "Token 无法主动失效"
+          - "需要处理刷新机制"
+      - name: "Session + Cookie"
+        pros:
+          - "服务端可控"
+          - "实现简单"
+        cons:
+          - "有状态，扩展性差"
+          - "跨域问题"
+      - name: "OAuth2.0"
+        pros:
+          - "标准化协议"
+          - "支持第三方登录"
+        cons:
+          - "实现复杂"
+          - "依赖外部服务"
+    chosen:
+      option: "JWT"
+      reason: "无状态架构优先，结合 Refresh Token 解决失效问题"
+    impact:
+      affected_components: ["认证模块", "API 网关"]
+      migration_required: false
+      training_required: false
+    # 扩展字段
+    x_token_expiry: "7 days"
+    x_refresh_token_expiry: "30 days"
+
+  - id: ADR-004
+    title: "使用 RabbitMQ 作为消息队列"
+    date: "2026-06-12"
+    status: "accepted"
+    context:
+      description: "需要选择消息队列中间件"
+      constraints:
+        - "需要可靠消息传递"
+        - "需要支持多种消息模式"
+        - "需要易于运维"
+      stakeholders: ["架构师", "运维工程师"]
+    options:
+      - name: "RabbitMQ"
+        pros:
+          - "功能全面，支持多种协议"
+          - "管理界面友好"
+          - "社区活跃"
+        cons:
+          - "性能相对 Kafka 较低"
+          - "集群配置复杂"
+      - name: "Kafka"
+        pros:
+          - "性能极高"
+          - "适合大数据场景"
+        cons:
+          - "运维复杂"
+          - "不适合小规模场景"
+      - name: "Redis Pub/Sub"
+        pros:
+          - "简单易用"
+          - "性能高"
+        cons:
+          - "消息持久化弱"
+          - "功能有限"
+    chosen:
+      option: "RabbitMQ"
+      reason: "功能全面，管理界面友好，适合中小规模场景"
+    impact:
+      affected_components: ["异步任务", "事件驱动"]
+      migration_required: false
+      training_required: true
+    # 扩展字段
+    x_version: "3.12"
+    x_cluster_size: 3
+
+  - id: ADR-005
+    title: "采用容器化部署（Docker + Kubernetes）"
+    date: "2026-06-12"
+    status: "accepted"
+    context:
+      description: "需要选择部署方案"
+      constraints:
+        - "需要环境一致性"
+        - "需要易于扩展"
+        - "需要自动化部署"
+      stakeholders: ["架构师", "运维工程师"]
+    options:
+      - name: "Docker + Kubernetes"
+        pros:
+          - "环境一致性好"
+          - "易于扩展和管理"
+          - "生态成熟"
+        cons:
+          - "学习曲线陡峭"
+          - "运维复杂度高"
+      - name: "传统部署"
+        pros:
+          - "简单直接"
+          - "运维熟悉"
+        cons:
+          - "环境不一致"
+          - "扩展困难"
+      - name: "Serverless"
+        pros:
+          - "无需管理服务器"
+          - "按需付费"
+        cons:
+          - "冷启动问题"
+          - "调试困难"
+    chosen:
+      option: "Docker + Kubernetes"
+      reason: "环境一致性优先，易于扩展，长期收益高"
+    impact:
+      affected_components: ["部署流程", "运维体系"]
+      migration_required: true
+      training_required: true
+    # 扩展字段
+    x_k8s_version: "1.27"
+    x_container_runtime: "containerd"
+
+# 决策统计（扩展点）
+statistics:
+  total: 5
+  accepted: 5
+  rejected: 0
+  deprecated: 0
+  # 扩展字段
+  x_last_decision_date: "2026-06-12"
+  x_decision_frequency: "monthly"
