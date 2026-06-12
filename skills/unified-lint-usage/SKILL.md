@@ -122,11 +122,17 @@ unified-lint fix .
 ### rule — 规则管理
 
 ```
-unified-lint rule list
-unified-lint rule list --engine gritql
-unified-lint rule show no_hardcoded_password
-unified-lint rule add my_rule
+unified-lint rule list                            # 列出所有规则
+unified-lint rule list --engine grit              # 只看 grit 引擎的规则
+unified-lint rule show no_hardcoded_password      # 显示规则详情 + 定义
+unified-lint rule add my_rule                     # 创建新规则 stub
+unified-lint rule edit my_rule                    # 在 $EDITOR 中打开 override
+unified-lint rule delete my_rule --yes            # 删除项目级 override
 ```
+
+`rule edit` 编辑器解析：`$EDITOR` → `$VISUAL` → `notepad` (Windows) / `vi` (macOS/Linux)。Builtin 规则会被提示源文件位置，提示先 `rule add` 创建 override。
+
+`rule delete` 默认会要求确认，加 `--yes` 跳过。Builtin 规则不可删除。
 
 ## 第四步：引擎选择决策树
 
@@ -534,8 +540,9 @@ jobs:
 6. 跑检查：unified-lint check .
 7. 编辑文件把字面量改为从环境变量读取
 8. 重新检查：unified-lint check .
-9. 加 CI：写 .github/workflows/lint.yml（参考第七步模板）
-10. 提交 .unified-lint/ .importlinter .gitignore .github/
+9. 加自定义规则：unified-lint rule add my_custom_check，再用 rule edit 编辑
+10. 加 CI：写 .github/workflows/lint.yml（参考第七步模板）
+11. 提交 .unified-lint/ .importlinter .gitignore .github/
 ```
 
 ## 教 AI 的关键判断

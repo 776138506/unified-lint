@@ -8,13 +8,30 @@ updated: 2026-06-12
 
 # unified-lint 开发技能
 
+## 何时加载这个 skill
+
+当用户的请求命中以下任一场景时加载：
+
+- 给 unified-lint 工具**加新引擎**（实现 `LintEngine` 基类）
+- 给 unified-lint **加新规则**（GritQL pattern / python-ast 函数 / spec-chain 插件）
+- 排查统一 linter 内部问题（runner、engine、rule 注册机制）
+- 修改统一 linter 的架构或扩展点
+- 写自定义 spec-chain 规则（插件机制）
+- 实现 engine 的 `fix()` 方法（自动修复逻辑）
+
+不加载的场景：
+
+- 用 unified-lint 检查项目 → 用 `unified-lint-usage`
+- 想了解整体架构设计哲学 → 用 `unified-custom-linter`
+- 用 ruff / pylint / eslint 等通用 linter（不是 unified-lint 相关）
+
 ## 设计哲学
 
 "文档即代码" — 文档应享受代码的全部工程纪律（lint/测试/CI/自动修复）。
 一个统一 Linter，多种规则源，统一配置、统一输出、统一 CI 门禁。
 
 底层组合现有工具（Grit CLI / import-linter / Python ast / markdown-it-py），不重新造轮子。
-doc-maintenance-system (doc-gov) 的思想已被本工具吸收。
+架构哲学：吸收多工具精华，把代码 / 文档 / 架构 / 规范链合并到一个 lint 入口。
 
 ## 架构（v0.6.0 六引擎）
 
@@ -331,7 +348,8 @@ unified-lint is evolving into a broader **spec-platform** that uses YAML to repl
 
 ## 相关 Skills
 
-- `doc-maintenance-system` (doc-gov): 文档维护体系的原始设计，其思想已融入本工具
+- `unified-lint-usage` — 消费视角（怎么用 unified-lint 检查项目）
+- `unified-custom-linter` — 架构哲学（GritQL + import-linter + 薄编排层的设计思路）
 
 ## Support Files
 

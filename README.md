@@ -145,10 +145,14 @@ unified-lint check .
 |:---|:---|
 | `unified-lint init <dir>` | 检测语言、安装依赖、生成 `.unified-lint/`、复制预置规则 |
 | `unified-lint check <dir>` | 跑所有引擎，返回统一退出码 |
-| `unified-lint fix <dir>`   | 对 fixable 规则执行自动修复 |
-| `unified-lint rule list`   | 列出所有可用规则 |
-| `unified-lint rule show <id>` | 显示某条规则的详细定义 |
-| `unified-lint rule add <id>` | 添加一条新规则到项目 |
+| `unified-lint fix <dir>`   | 对 fixable 规则执行自动修复（当前是 stub，详见下方说明） |
+| `unified-lint rule list`   | 列出所有可用规则（支持 `--engine <name>` 过滤） |
+| `unified-lint rule show <id>` | 显示某条规则的详细定义（含 GritQL 源码或引擎位置） |
+| `unified-lint rule add <id>` | 在 `.grit/patterns/<id>.md` 创建新规则 stub |
+| `unified-lint rule edit <id>` | 用 `$EDITOR` 打开规则的 override 文件（builtin 提示源位置） |
+| `unified-lint rule delete <id>` | 删除项目级规则 override（`--yes` 跳过确认） |
+
+`check` 选项：`--engine <name>`（只跑一个引擎）、`--severity <level>`（只显示该级别）、`--verbose`（详细输出）。
 
 `check` 退出码：
 

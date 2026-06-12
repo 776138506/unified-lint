@@ -16,7 +16,6 @@ ArchUnitPython      ✗         ✗           ✓ arch     Python   ✓ Python A
 Structurelint       ✓ 结构    ✗           ✓ 依赖图   Go/Py/TS 有限           binary
 Vale                ✗         ✓ prose     ✗          语言无关 ✓ YAML rules  binary
 markdownlint        ✗         ✓ MD格式    ✗          MD only  ✓ JS plugin   npm
-doc-gov             ✗         ✓ 结构      ✗          语言无关 ✓(v0.2计划)    Rust binary
 ```
 
 ## GritQL vs 替代方案

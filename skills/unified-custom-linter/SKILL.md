@@ -12,6 +12,22 @@ tags: [linter, architecture, gritql, import-linter, custom-rules, docs-as-code]
 > 用户哲学："我们最后只需要一个自定义 rule 的增强 linter"
 > "文档即代码，linter 可以自定义 rule 像审查代码一样审查文档"
 
+## 何时加载这个 skill
+
+当用户的请求命中以下任一场景时加载：
+
+- 评估"统一 linter 想法"是否可行 / 调研类似架构
+- 选择 GritQL vs import-linter vs 其他方案的取舍
+- 想了解 unified-lint 的整体设计理念（为什么 GritQL + import-linter + 薄编排层）
+- 对比 unified-lint 与 MegaLinter / Biome / ESLint 的差异
+- 写"统一 lint"工具的架构决策（怎么把多类检查合并到一个入口）
+
+不加载的场景：
+
+- 用 unified-lint 检查项目 → 用 `unified-lint-usage`
+- 给 unified-lint 加新引擎或规则 → 用 `unified-lint-development`
+- 用 ruff / pylint / eslint 等通用 linter（不是统一 linter）
+
 ## 1. 核心理念
 
 将三层检查统一到一个入口：
@@ -39,7 +55,6 @@ tags: [linter, architecture, gritql, import-linter, custom-rules, docs-as-code]
 - **MegaLinter**：需要 Docker，太重，只是 linter 聚合器不是统一引擎
 - **Biome v2 + GritQL plugin**：仅 JS/TS，不支持 Python/Go/Rust
 - **ESLint**：仅 JS/TS，插件生态成熟但语言限制
-- **doc-gov 独立工具**：思想正确但应被合并进更大框架
 
 ## 3. GritQL 关键知识
 
@@ -173,10 +188,6 @@ project/
 
 FAILED - 发现 2 个问题
 ```
-
-## 7. 与 doc-gov / doc-maintenance-system 的关系
-
-doc-gov 的核心理念（文档一致性检查、SSoT、生命周期）可以通过 GritQL + import-linter 组合实现，不需要独立工具。doc-gov 证明了"文档也可以被 lint"这个命题，证明完了应该被合并。
 
 ## 8. 扩展路径
 
