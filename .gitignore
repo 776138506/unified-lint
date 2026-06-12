@@ -1,8 +1,52 @@
+# Python
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
 *.egg-info/
+*.egg
 dist/
 build/
+.eggs/
+*.so
+
+# Virtual envs
+.venv/
+venv/
+env/
+ENV/
+
+# Testing / caches
 .pytest_cache/
+.import_linter_cache/
+.coverage
+htmlcov/
+.tox/
+.cache/
+
+# Grit internal cache (keep .grit/patterns/ tracked)
+.grit/.gritmodules
+.grit/modules/
+
+# Unified-lint runtime cache (keep .unified-lint/config.toml and rules tracked)
+.unified-lint/cache/
+
+# Grit CLI binary (download separately, see README)
+grit.exe
 grit.tar.gz
 grit-x86_64-pc-windows-msvc/
+
+# Editor / OS
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Env
+.env
+.env.local
