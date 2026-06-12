@@ -312,6 +312,24 @@ unified-lint check .
 
 详见 `unified-lint-development` skill（开发工作流、引擎抽象层、插件机制）。
 
+## Skills
+
+仓库自带三个 agent skill 定义，位于 [skills/](skills/)：
+
+| Skill | 视角 | 用途 |
+|:---|:---|:---|
+| [unified-lint-usage/SKILL.md](skills/unified-lint-usage/SKILL.md) | 消费视角 | 怎么用 unified-lint 给项目加代码/文档/架构检查 |
+| [unified-lint-development/SKILL.md](skills/unified-lint-development/SKILL.md) | 开发视角 | 怎么给 unified-lint 加新引擎/新规则 |
+| [unified-custom-linter/SKILL.md](skills/unified-custom-linter/SKILL.md) | 架构哲学 | GritQL + import-linter + 薄编排层的设计思路 |
+
+每个 skill 目录结构：
+
+
+
+集成到 agent：
+
+
+
 ## 项目链接
 
 仓库: https://github.com/776138506/unified-lint
