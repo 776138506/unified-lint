@@ -108,11 +108,36 @@ echo 'db_password = "literal-string"' >> src/auth.py
 unified-lint check .
 # → [1/6] GritQL (code)  1 violation  no_hardcoded_password @ src/auth.py:1
 
-# 4. 修复后改成从环境变量读取
-# 5. 重新跑检查
+# 4. 尝试自动修复（当前是 stub，详见下方说明）
+unified-lint fix .
+
+# 5. 手动修复：编辑文件，把字面量改成从环境变量读取
+#    db_password = os.getenv("DB_PASSWORD")
+
+# 6. 重新跑检查
 unified-lint check .
 # → ALL PASS
 ```
+
+### `fix` 命令当前状态（重要）
+
+`unified-lint fix .` 当前**是 stub**：
+
+- 命令存在、能跑通、能正常输出报告和退出码
+- 但**不会修改任何文件**——`engine.fix()` 默认是 no-op（`base.py` 返回 `self.check()`）
+- 极少数规则会标 `fixable=True`（grit parser 的默认值），但**没有任何引擎真正实现修复逻辑**
+
+要让它真正工作，需要：
+
+1. 在引擎里 override `fix()` 方法，写实际修改文件的代码
+2. 配合 Grit CLI 的 `apply` 子命令（grit 引擎可以用）
+
+适用场景：
+
+- 想验证 lint 配置正确 → 用 `fix`（输出当前 violations）
+- 真正修改文件 → **手动编辑**，不要依赖 `fix` 命令
+
+未来计划：在 python-ast 引擎里给 `no_bare_except`、`api_result_wrapper` 等安全可推断的规则实现真正的自动修复。
 
 ## CLI 命令
 
