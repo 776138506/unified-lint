@@ -19,6 +19,9 @@ ENV/
 # Testing / caches
 .pytest_cache/
 .import_linter_cache/
+.grimp_cache/
+.mypy_cache/
+.ruff_cache/
 .coverage
 htmlcov/
 .tox/
