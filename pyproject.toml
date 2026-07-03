@@ -11,6 +11,7 @@ dependencies = [
     "typer>=0.9",
     "import-linter>=2.0",
     "rich>=13.0",
+    "pyyaml>=6.0",  # used by markdown_ast + spec_chain engines; was missing, see fix #1
     "tomli>=2.0; python_version<'3.11'",
 ]
 
