@@ -64,6 +64,30 @@ def get_engines(config: dict) -> list:
     """
     engines_flags = config.get("engines", {})
 
+    # Catch typos and stale engine names so a user who writes
+    # ``[engines] grit = true`` (Biome's old name) or
+    # ``[engines] python = true`` (the language, not the engine) gets
+    # told instead of silently falling back to defaults. The list is
+    # the single source of truth for the per-engine key set.
+    valid_engine_keys = {
+        "gritql",
+        "python_ast",
+        "markdown_ast",
+        "tree_sitter",
+        "spec_chain",
+        "import_linter",
+    }
+    unknown = set(engines_flags) - valid_engine_keys
+    if unknown:
+        import warnings
+        warnings.warn(
+            f"Unknown engine(s) in [engines] config: {sorted(unknown)}. "
+            f"Valid keys: {sorted(valid_engine_keys)}. "
+            f"Check the README for the canonical list.",
+            UserWarning,
+            stacklevel=2,
+        )
+
     # Legacy coarse-grained flags. Kept for backward compatibility — when
     # [engines] is absent, behavior is unchanged from pre-2026-07 versions.
     code_enabled = config.get("code", {}).get("enabled", True)
