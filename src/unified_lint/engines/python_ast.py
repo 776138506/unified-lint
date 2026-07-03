@@ -160,9 +160,16 @@ def check_no_bare_except(path: Path, tree: ast.Module) -> list[Violation]:
 
 @rule("no_hardcoded_secret", Severity.ERROR, "No hardcoded passwords or API keys")
 def check_no_hardcoded_secret(path: Path, tree: ast.Module) -> list[Violation]:
-    """Check for hardcoded secrets using AST (more precise than regex)."""
+    """Check for hardcoded secrets using AST (more precise than regex).
+
+    Catches the common bypasses that the old regex/equality-based check
+    missed (e.g. ``a = b = "secret"``, ``db_password = "literal"``,
+    ``password = "sk-" + "live"``). Heuristic: any assignment whose
+    target name contains a secret keyword AND whose value is a literal
+    string (alone or composed via BinOp / JoinedStr / chained assign).
+    """
     violations = []
-    secret_names = {
+    secret_keywords = (
         "password",
         "passwd",
         "pwd",
@@ -171,42 +178,57 @@ def check_no_hardcoded_secret(path: Path, tree: ast.Module) -> list[Violation]:
         "apikey",
         "token",
         "private_key",
-    }
+    )
     safe_calls = {"getenv", "environ", "get"}
+
+    def _is_secret_name(name: str) -> bool:
+        n = name.lower()
+        return any(kw in n for kw in secret_keywords)
+
+    def _value_has_string_literal(value: ast.AST) -> bool:
+        """Walk a value expression; return True if it contains a string literal.
+
+        Catches: Constant(str), BinOp with Constant(str) leaves
+        (e.g. ``"sk-" + "live"``), JoinedStr (f-strings with literals).
+        Multi-line implicit concatenation (``"a" "b"``) is already collapsed
+        by Python's parser into a single Constant, so it's covered.
+        """
+        if isinstance(value, ast.Constant) and isinstance(value.value, str):
+            return value.value != ""
+        if isinstance(value, ast.BinOp):
+            return _value_has_string_literal(value.left) or _value_has_string_literal(
+                value.right
+            )
+        if isinstance(value, ast.JoinedStr):
+            return any(
+                _value_has_string_literal(v) for v in value.values if v
+            )
+        return False
 
     for node in ast.walk(tree):
         if not isinstance(node, ast.Assign):
             continue
-        for target in node.targets:
-            name = ""
-            if isinstance(target, ast.Name):
-                name = target.id
-            elif isinstance(target, ast.Attribute):
-                name = target.attr
-            if not name:
-                continue
-            if name.lower() not in secret_names:
-                continue
-            # Check if value is a safe call (os.getenv etc)
-            if isinstance(node.value, ast.Call):
-                func = node.value.func
-                func_name = ""
-                if isinstance(func, ast.Attribute):
-                    func_name = func.attr
-                elif isinstance(func, ast.Name):
-                    func_name = func.id
-                if func_name in safe_calls:
-                    continue
-            # Check if value is a constant string
-            if isinstance(node.value, ast.Constant) and isinstance(
-                node.value.value, str
-            ):
-                if node.value.value == "":
-                    continue  # Empty string is ok
+
+        # Chained assign heuristic: ``a = b = "leakedpassword"`` is suspicious
+        # even when neither ``a`` nor ``b`` contain a secret keyword — a
+        # string literal being fanned out to multiple names is rare in
+        # legitimate code. Flag it with a separate rule so users can tell
+        # the two cases apart.
+        is_chained = len(node.targets) > 1
+        has_string_literal = _value_has_string_literal(node.value)
+        if is_chained and has_string_literal and isinstance(
+            node.value, ast.Constant
+        ):
+            # Skip safe values that legitimately fan out (empty / dunder).
+            if node.value.value not in ("", "__main__"):
                 violations.append(
                     Violation(
                         rule_id="no_hardcoded_secret",
-                        message=f"Hardcoded secret in '{name}', use os.getenv()",
+                        message=(
+                            f"Chained assignment to string literal "
+                            f"'{node.value.value[:40]}...' is suspicious; "
+                            f"if this is a secret, use os.getenv()"
+                        ),
                         file=str(path),
                         line=node.lineno,
                         col=node.col_offset + 1,
@@ -215,6 +237,45 @@ def check_no_hardcoded_secret(path: Path, tree: ast.Module) -> list[Violation]:
                         fixable=False,
                     )
                 )
+                continue
+
+        for target in node.targets:
+            # Handle both ``password = ...`` and ``a = b = "secret"``:
+            # every target gets checked against the secret-keyword list.
+            if isinstance(target, ast.Name):
+                name = target.id
+            elif isinstance(target, ast.Attribute):
+                name = target.attr
+            else:
+                continue
+            if not _is_secret_name(name):
+                continue
+            # Allow safe callables: os.getenv / os.environ / config.get
+            if isinstance(node.value, ast.Call):
+                func = node.value.func
+                func_name = (
+                    func.attr
+                    if isinstance(func, ast.Attribute)
+                    else func.id
+                    if isinstance(func, ast.Name)
+                    else ""
+                )
+                if func_name in safe_calls:
+                    continue
+            if not has_string_literal:
+                continue
+            violations.append(
+                Violation(
+                    rule_id="no_hardcoded_secret",
+                    message=f"Hardcoded secret in '{name}', use os.getenv()",
+                    file=str(path),
+                    line=node.lineno,
+                    col=node.col_offset + 1,
+                    severity=Severity.ERROR,
+                    engine="python-ast",
+                    fixable=False,
+                )
+            )
     return violations
 
 
