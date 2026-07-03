@@ -21,7 +21,14 @@ except ImportError:
 
 
 def load_config(project_root: Path) -> dict:
-    """Load .unified-lint/config.toml."""
+    """Load .unified-lint/config.toml.
+
+    Returns sensible defaults when the file is missing; raises a
+    human-friendly ``ConfigError`` when the file exists but cannot
+    be parsed (unterminated string, bad UTF-8, syntax error, …).
+    The previous behavior was a full tomllib traceback, which
+    looked like a crash to anyone running the CLI in CI.
+    """
     config_path = project_root / ".unified-lint" / "config.toml"
     if not config_path.exists():
         return {
@@ -29,8 +36,22 @@ def load_config(project_root: Path) -> dict:
             "code": {"enabled": True},
             "docs": {"enabled": True},
         }
-    with open(config_path, "rb") as f:
-        return tomllib.load(f)
+    try:
+        with open(config_path, "rb") as f:
+            return tomllib.load(f)
+    except tomllib.TOMLDecodeError as e:
+        raise ConfigError(
+            f"Invalid TOML in {config_path} at line {e.lineno}, "
+            f"col {e.colno}: {e.msg}"
+        ) from e
+
+
+class ConfigError(Exception):
+    """Raised when the project config is malformed.
+
+    Caught by the CLI layer and rendered as a friendly error panel
+    instead of a stack trace.
+    """
 
 
 def get_engines(config: dict) -> list:

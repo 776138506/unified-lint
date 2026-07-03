@@ -8,7 +8,7 @@ from typing import Optional
 import typer
 from rich.console import Console
 
-from ..runner import format_results, load_config, run_check
+from ..runner import ConfigError, format_results, load_config, run_check
 
 console = Console()
 
@@ -96,7 +96,10 @@ def check(
     """
     project = project.resolve()
     _validate_project_path(project)
-    config = load_config(project)
+    try:
+        config = load_config(project)
+    except ConfigError as e:
+        raise typer.BadParameter(str(e), param_hint="project")
     results, exit_code = run_check(project, config)
 
     # Post-hoc filters
