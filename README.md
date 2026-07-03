@@ -260,12 +260,25 @@ root = "."
 name = "my-project"
 
 [engines]
+# Per-engine opt-out. Missing keys default to enabled. 这跟 [code] / [docs] /
+# [layers] 粗粒度开关共存 — 显式写出的 [engines] 键优先生效。
 gritql = true
 python_ast = true
 markdown_ast = true
-tree_sitter = true
+tree_sitter = false   # 只在写 Rust/C# 时打开
 spec_chain = true
 import_linter = true
+
+[code]
+enabled = true
+paths = ["src", "myapp"]  # 不需要 [engines] 时退回到 [code]/[docs]/[layers] 粗粒度控制
+
+[docs]
+enabled = true
+paths = ["docs"]
+
+[layers]
+enabled = true
 
 [severity]
 # 自定义严重级别覆盖（默认用规则定义的级别）
@@ -273,6 +286,11 @@ override."no_print_in_prod" = "error"
 ```
 
 `.importlinter` 由 `init` 自动生成，包含基础分层契约。
+
+扫描时所有引擎都会跳过下列目录（见 `src/unified_lint/engines/base.py`
+里的 `DEFAULT_EXCLUDES`）：`.venv`、`.git`、`__pycache__`、
+`node_modules`、`dist`、`build`、`.eggs`、`.import_linter_cache`、
+`.grimp_cache`、`*.egg-info` 等。无需手动在 config 里加 exclude。
 
 ## CI 集成
 

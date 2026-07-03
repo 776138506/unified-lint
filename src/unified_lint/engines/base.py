@@ -9,6 +9,61 @@ from pathlib import Path
 from typing import Optional
 
 
+# Default directories/files that engines must skip during project scans.
+# These are generated artifacts, dependencies, or version-control metadata
+# that should never be linted. Engines should call ``should_skip_path()``
+# before processing any file discovered by rglob/walk.
+DEFAULT_EXCLUDES: tuple[str, ...] = (
+    ".venv",
+    "venv",
+    "env",
+    "ENV",
+    "__pycache__",
+    ".git",
+    ".hg",
+    ".svn",
+    "node_modules",
+    "dist",
+    "build",
+    ".eggs",
+    ".pytest_cache",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".tox",
+    ".cache",
+    ".import_linter_cache",
+    ".grimp_cache",
+    ".grit/.gritmodules",
+    ".grit/modules",
+    ".unified-lint/cache",
+    # setuptools/sdist artifacts
+    "*.egg-info",
+    "*.egg",
+)
+
+
+def should_skip_path(path: Path, project_root: Optional[Path] = None) -> bool:
+    """Return True if ``path`` lies under any of DEFAULT_EXCLUDES.
+
+    Engines should call this for every candidate file so the same
+    exclusion set applies across python_ast / markdown_ast / spec_chain.
+    """
+    parts = path.parts
+    for exclude in DEFAULT_EXCLUDES:
+        if exclude in parts:
+            return True
+        if "*" in exclude and any(_glob_match(exclude, p) for p in parts):
+            return True
+    return False
+
+
+def _glob_match(pattern: str, name: str) -> bool:
+    """Minimal fnmatch-style match supporting a single leading ``*``."""
+    if pattern.startswith("*") and not pattern.count("*") - 1:
+        return name.endswith(pattern[1:])
+    return False
+
+
 class Severity(Enum):
     ERROR = "error"
     WARN = "warn"

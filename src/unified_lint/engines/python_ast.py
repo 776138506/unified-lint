@@ -10,7 +10,7 @@ import ast
 from pathlib import Path
 from typing import Callable
 
-from .base import EngineResult, LintEngine, Severity, Violation
+from .base import EngineResult, LintEngine, Severity, Violation, should_skip_path
 
 
 # Rule function signature: takes file path + AST, returns violations
@@ -276,9 +276,12 @@ class PythonAstEngine(LintEngine):
         for p in paths:
             target = project_root / p
             if target.is_file() and target.suffix == ".py":
-                py_files.append(target)
+                if not should_skip_path(target, project_root):
+                    py_files.append(target)
             elif target.is_dir():
-                py_files.extend(target.rglob("*.py"))
+                for f in target.rglob("*.py"):
+                    if not should_skip_path(f, project_root):
+                        py_files.append(f)
 
         for py_file in py_files:
             # Skip __pycache__, tests, etc.

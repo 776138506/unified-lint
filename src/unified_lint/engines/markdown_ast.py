@@ -13,7 +13,7 @@ from typing import Callable
 import yaml
 from markdown_it import MarkdownIt
 
-from .base import EngineResult, LintEngine, Severity, Violation
+from .base import EngineResult, LintEngine, Severity, Violation, should_skip_path
 
 
 # Rule function signature: takes file path + tokens, returns violations
@@ -271,16 +271,18 @@ class MarkdownAstEngine(LintEngine):
         for p in paths:
             target = project_root / p
             if target.is_file() and target.suffix in (".md", ".markdown"):
-                md_files.append(target)
+                if not should_skip_path(target, project_root):
+                    md_files.append(target)
             elif target.is_dir():
-                md_files.extend(target.rglob("*.md"))
-                md_files.extend(target.rglob("*.markdown"))
+                for f in target.rglob("*.md"):
+                    if not should_skip_path(f, project_root):
+                        md_files.append(f)
+                for f in target.rglob("*.markdown"):
+                    if not should_skip_path(f, project_root):
+                        md_files.append(f)
 
         for md_file in md_files:
-            # Skip node_modules, .git, etc.
-            if any(
-                skip in str(md_file) for skip in ["node_modules", ".git", "__pycache__"]
-            ):
+            if should_skip_path(md_file, project_root):
                 continue
 
             try:

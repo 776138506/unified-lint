@@ -34,19 +34,33 @@ def load_config(project_root: Path) -> dict:
 
 
 def get_engines(config: dict) -> list:
-    """Get enabled engines based on config."""
+    """Get enabled engines based on config.
+
+    Per-engine opt-out via [engines] section (e.g. ``gritql = false``)
+    takes precedence over the legacy [code]/[docs]/[layers] coarse flags.
+    Missing per-engine keys default to True so an [engines] block that
+    lists only one engine still keeps the rest enabled.
+    """
+    engines_flags = config.get("engines", {})
+
+    # Legacy coarse-grained flags. Kept for backward compatibility — when
+    # [engines] is absent, behavior is unchanged from pre-2026-07 versions.
+    code_enabled = config.get("code", {}).get("enabled", True)
+    docs_enabled = config.get("docs", {}).get("enabled", True)
+    layers_enabled = config.get("layers", {}).get("enabled", True)
+
     engines = []
-
-    if config.get("code", {}).get("enabled", True) or config.get("docs", {}).get(
-        "enabled", True
-    ):
+    if engines_flags.get("gritql", code_enabled or docs_enabled):
         engines.append(GritEngine())
+    if engines_flags.get("python_ast", code_enabled):
         engines.append(PythonAstEngine())
+    if engines_flags.get("markdown_ast", docs_enabled):
         engines.append(MarkdownAstEngine())
+    if engines_flags.get("tree_sitter", code_enabled):
         engines.append(TreeSitterEngine())
+    if engines_flags.get("spec_chain", docs_enabled):
         engines.append(SpecChainEngine())
-
-    if config.get("layers", {}).get("enabled", True):
+    if engines_flags.get("import_linter", layers_enabled):
         engines.append(ImportLinterEngine())
 
     return engines
