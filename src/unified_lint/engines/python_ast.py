@@ -170,6 +170,7 @@ def check_no_hardcoded_secret(path: Path, tree: ast.Module) -> list[Violation]:
     """
     violations = []
     secret_keywords = (
+        # English
         "password",
         "passwd",
         "pwd",
@@ -178,6 +179,14 @@ def check_no_hardcoded_secret(path: Path, tree: ast.Module) -> list[Violation]:
         "apikey",
         "token",
         "private_key",
+        # Chinese — covering the same concepts in code that's mostly
+        # Chinese (e.g. 密码 = password, 密钥 = secret/key, 令牌 = token).
+        # Substring match in _is_secret_name means a variable like
+        # ``db_密码`` or ``密码属性`` will also be flagged.
+        "密码",
+        "密钥",
+        "口令",
+        "令牌",
     )
     safe_calls = {"getenv", "environ", "get"}
 
