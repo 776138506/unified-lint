@@ -1,0 +1,11 @@
+[importlinter]
+root_package = mario_server
+include_external_packages = False
+
+[importlinter:contract:no-infra-to-domain]
+name = 禁止 infra 直接依赖 domain
+type = forbidden
+source_modules =
+    mario_server.infra.*
+forbidden_modules =
+    mario_server.domain.*

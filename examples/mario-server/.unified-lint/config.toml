@@ -1,0 +1,13 @@
+[project]
+root = "."
+name = "mario-server"
+
+[engines]
+gritql = false  # Grit CLI 是 75MB 二进制，demo 默认不开；启用需先安装
+python_ast = true
+markdown_ast = true
+tree_sitter = false
+spec_chain = true
+import_linter = true
+
+[severity]
